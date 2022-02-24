@@ -11,6 +11,10 @@
 #include <numeric>
 #include <windowsx.h>
 
+//#include <gdiplus.h>
+//#include <gdiplusbrush.h>
+//#include <gdipluscolor.h>
+
 using namespace std::placeholders;
 using std::views::filter;
 
@@ -788,8 +792,43 @@ LRESULT ScreenToolWnd::Impl::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPA
 
 		if (fittingPosWnd)
 		{
-			FillRect(hDC, &fittingPosWnd->previewRect, GetSysColorBrush(COLOR_ACTIVECAPTION));
+			//using namespace Gdiplus;
+			//GdiplusStartupInput gdiplusStartupInput;
+			//ULONG_PTR gdiplusToken;
+			//GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
+			RECT rc = fittingPosWnd->previewRect;
+
+			//const Color clr(192, 255, 0, 0);
+
+			//Rect rectangle(rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top);
+			//SolidBrush solidBrush();
+			//g.FillRectangle(&solidBrush, rectangle);
+
+			//HDC hMemDC = CreateCompatibleDC(hDC);
+			//HBITMAP hBmp = CreateCompatibleBitmap(hDC, rc.right - rc.left, rc.bottom - rc.top);
+			//HGDIOBJ hObj = SelectObject(hMemDC, hBmp);
+
+			//FillRect(hMemDC, &fittingPosWnd->previewRect, GetSysColorBrush(COLOR_ACTIVECAPTION));
+
+			//BitBlt(
+			//	hDC,
+			//	rc.left,
+			//	rc.top,
+			//	rc.right - rc.left,
+			//	rc.bottom - rc.top,
+			//	hMemDC,
+			//	rc.left,
+			//	rc.top,
+			//	SRCAND
+			//);
+
+			//SelectObject(hMemDC, hObj);
+			//DeleteObject(hBmp);
+			//DeleteDC(hMemDC);
+
 			FrameRect(hDC, &fittingPosWnd->previewRect, GetSysColorBrush(COLOR_HOTLIGHT));
+			//GdiplusShutdown(gdiplusToken);
 		}
 
 
