@@ -111,6 +111,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		return FALSE;
 	}
   */
+	/*
 	DWORD dwThreadId = ::GetCurrentThreadId();
 
 	// Set hook on CallWndProc
@@ -133,6 +134,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	{
 		return FALSE;
 	}
+	*/
 
 	MSG msg;
 
@@ -282,16 +284,38 @@ LPCWSTR GetDLLPath()
 
 	return out;
 }
+#include <psapi.h>
 
 void InjectVSCode()
 {
-	int procId = GetProcessIdByName(L"Code.exe");
+	int procId = GetProcessIdByName(L"TestWindow.exe");
 
 	LPCWSTR DllPath = GetDLLPath();
+	//static HMODULE hMod = NULL;
+	//if (hMod)
+	//{
+	//	HMODULE hNtDll = GetModuleHandleA("ntdll.dll");
+	//	VERIFYB(hNtDll);
+
+	//	//MODULEINFO baseModuleInfo;
+	//	//bool success = GetModuleInfo(&baseModuleInfo);
+
+	//	auto unloadDll = GetProcAddress(hNtDll, "LdrUnloadDll");
+	//	unloadDll();
+	//}
+	//else
+	//{
+	//	hMod = LoadLibraryW(DllPath);
+	//}
+
+
 
 	// Open a handle to target process
 	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, procId);
 	VERIFYB(hProcess);
+
+
+	//LdrUnloadDll()
 
 	// Allocate memory for the dllpath in the target process
 	// length of the path string + null terminator
@@ -300,14 +324,14 @@ void InjectVSCode()
 
 	// Write the path to the address of the memory we just allocated
 	// in the target process
-	WriteProcessMemory(hProcess, pDllPath, DllPath, wcslen(DllPath) + 1, 0);
+	WriteProcessMemory(hProcess, pDllPath, DllPath, (wcslen(DllPath) * 2) + 1, 0);
 
 	HMODULE hKerne32 = GetModuleHandleA("Kernel32.dll");
 	VERIFYB(hKerne32);
 
 	// Create a Remote Thread in the target process which
 	// calls LoadLibraryA as our dllpath as an argument -> program loads our dll
-	LPTHREAD_START_ROUTINE startThread = (LPTHREAD_START_ROUTINE)GetProcAddress(hKerne32, "LoadLibraryA");
+	LPTHREAD_START_ROUTINE startThread = (LPTHREAD_START_ROUTINE)GetProcAddress(hKerne32, "LoadLibraryW");
 	VERIFYB(startThread);
 
 	HANDLE hLoadThread = CreateRemoteThread(hProcess, 0, 0, startThread, pDllPath, 0, 0);
