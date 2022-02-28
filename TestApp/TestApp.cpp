@@ -291,57 +291,44 @@ void InjectVSCode()
 	int procId = GetProcessIdByName(L"TestWindow.exe");
 
 	LPCWSTR DllPath = GetDLLPath();
-	//static HMODULE hMod = NULL;
-	//if (hMod)
-	//{
-	//	HMODULE hNtDll = GetModuleHandleA("ntdll.dll");
-	//	VERIFYB(hNtDll);
-
-	//	//MODULEINFO baseModuleInfo;
-	//	//bool success = GetModuleInfo(&baseModuleInfo);
-
-	//	auto unloadDll = GetProcAddress(hNtDll, "LdrUnloadDll");
-	//	unloadDll();
-	//}
-	//else
-	//{
-	//	hMod = LoadLibraryW(DllPath);
-	//}
-
-
 
 	// Open a handle to target process
-	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, procId);
-	VERIFYB(hProcess);
+	static HANDLE hProcess = NULL;
+	if (hProcess == NULL)
+	{
+		hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, procId);
+		VERIFYB(hProcess);
 
+		// Allocate memory for the dllpath in the target process
+		// length of the path string + null terminator
+		LPVOID pDllPath = VirtualAllocEx(hProcess, 0, wcslen(DllPath) + 1, MEM_COMMIT, PAGE_READWRITE);
+		VERIFYB(pDllPath);
 
-	//LdrUnloadDll()
+		// Write the path to the address of the memory we just allocated
+		// in the target process
+		WriteProcessMemory(hProcess, pDllPath, DllPath, (wcslen(DllPath) * 2) + 1, 0);
 
-	// Allocate memory for the dllpath in the target process
-	// length of the path string + null terminator
-	LPVOID pDllPath = VirtualAllocEx(hProcess, 0, wcslen(DllPath) + 1, MEM_COMMIT, PAGE_READWRITE);
-	VERIFYB(pDllPath);
+		HMODULE hKerne32 = GetModuleHandleA("Kernel32.dll");
+		VERIFYB(hKerne32);
 
-	// Write the path to the address of the memory we just allocated
-	// in the target process
-	WriteProcessMemory(hProcess, pDllPath, DllPath, (wcslen(DllPath) * 2) + 1, 0);
+		// Create a Remote Thread in the target process which
+		// calls LoadLibraryA as our dllpath as an argument -> program loads our dll
+		LPTHREAD_START_ROUTINE startThread = (LPTHREAD_START_ROUTINE)GetProcAddress(hKerne32, "LoadLibraryW");
+		VERIFYB(startThread);
 
-	HMODULE hKerne32 = GetModuleHandleA("Kernel32.dll");
-	VERIFYB(hKerne32);
+		HANDLE hLoadThread = CreateRemoteThread(hProcess, 0, 0, startThread, pDllPath, 0, 0);
+		VERIFYB(hLoadThread);
 
-	// Create a Remote Thread in the target process which
-	// calls LoadLibraryA as our dllpath as an argument -> program loads our dll
-	LPTHREAD_START_ROUTINE startThread = (LPTHREAD_START_ROUTINE)GetProcAddress(hKerne32, "LoadLibraryW");
-	VERIFYB(startThread);
+		// Wait for the execution of our loader thread to finish
+		WaitForSingleObject(hLoadThread, INFINITE);
 
-	HANDLE hLoadThread = CreateRemoteThread(hProcess, 0, 0, startThread, pDllPath, 0, 0);
-	VERIFYB(hLoadThread);
+		// Free the memory allocated for our dll path
+		VirtualFreeEx(hProcess, pDllPath, 0, MEM_RELEASE);
+	}
+	else
+	{
 
-	// Wait for the execution of our loader thread to finish
-	WaitForSingleObject(hLoadThread, INFINITE);
-
-	// Free the memory allocated for our dll path
-	VirtualFreeEx(hProcess, pDllPath, 0, MEM_RELEASE);
+	}
 }
 
 //
