@@ -252,7 +252,7 @@ int GetProcessIdByName(std::wstring exeName)
 #define VERIFYB( statement ) if(!(statement)) throw std::runtime_error(#statement);
 #define VERIFYH( statement ) if(!SUCCEEDED(statement)) throw std::runtime_error(#statement);
 
-LPCWSTR GetDLLPath()
+std::wstring GetDLLPath()
 {
 	TCHAR buffer[MAX_PATH] = { 0 };
 	TCHAR* out = nullptr;
@@ -282,7 +282,7 @@ LPCWSTR GetDLLPath()
 
 	VERIFYH(PathCchAppend(out, bufSize, dllName.c_str()));
 
-	return out;
+	return std::wstring(out);
 }
 #include <psapi.h>
 
@@ -290,7 +290,7 @@ void InjectVSCode()
 {
 	int procId = GetProcessIdByName(L"TestWindow.exe");
 
-	LPCWSTR DllPath = GetDLLPath();
+	std::wstring DllPath = GetDLLPath();
 	//static HMODULE hMod = NULL;
 	//if (hMod)
 	//{
@@ -319,12 +319,12 @@ void InjectVSCode()
 
 	// Allocate memory for the dllpath in the target process
 	// length of the path string + null terminator
-	LPVOID pDllPath = VirtualAllocEx(hProcess, 0, wcslen(DllPath) + 1, MEM_COMMIT, PAGE_READWRITE);
+	LPVOID pDllPath = VirtualAllocEx(hProcess, 0, wcslen(DllPath.c_str()) + 1, MEM_COMMIT, PAGE_READWRITE);
 	VERIFYB(pDllPath);
 
 	// Write the path to the address of the memory we just allocated
 	// in the target process
-	WriteProcessMemory(hProcess, pDllPath, DllPath, (wcslen(DllPath) * 2) + 1, 0);
+	WriteProcessMemory(hProcess, pDllPath, DllPath.c_str(), (wcslen(DllPath.c_str()) * 2) + 1, 0);
 
 	HMODULE hKerne32 = GetModuleHandleA("Kernel32.dll");
 	VERIFYB(hKerne32);
