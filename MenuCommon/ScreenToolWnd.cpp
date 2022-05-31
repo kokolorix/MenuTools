@@ -19,9 +19,9 @@ namespace
 	const std::wstring CLASS_NAME = L"ScreenToolWnd";
 	WNDCLASSW* wndClass = nullptr;
 
-	const FLOAT F = 0.1f; // factor
+	FLOAT F = 0.1f; // factor
 	const UINT CLOSE_TIMER = 0x30;
-	const UINT CLOSE_TIMEOUT = 3500;
+	UINT CLOSE_TIMEOUT = 3500;
 }
 RECT ScaleRect(RECT& in, FLOAT f);
 DWORD WINAPI KeyThread(LPVOID);
@@ -77,8 +77,8 @@ struct ScreenWnd {
 	}
 
 	void Paint(PAINTSTRUCT& ps, HDC hDC);
-	
-	void push_back(PositioningCfg& wp) { 
+
+	void push_back(PositioningCfg& wp) {
 		return _posititioningWnds.push_back(PositioningWnd(wp, this));
 	}
 
@@ -122,7 +122,7 @@ public:
 	{
 		using std::ranges::find_if;
 
-		auto &pw = _posititioningWnds;
+		auto& pw = _posititioningWnds;
 		if (auto it = find_if(pw.rbegin(), pw.rend(), [pt](PositioningWnd& pw) { return PtInRect(&pw.previewRect, pt); }); it != pw.rend())
 		{
 			return &*it;
@@ -135,7 +135,7 @@ public:
 	{
 		using std::ranges::find_if;
 
-		auto &pw = _posititioningWnds;
+		auto& pw = _posititioningWnds;
 		if (auto it = find_if(pw.rbegin(), pw.rend(), [wr](PositioningWnd& pw) { return EqualRect(&pw.screenRect, &wr); }); it != pw.rend())
 		{
 			return &*it;
@@ -161,7 +161,7 @@ public:
 		{
 			if (++it == pws.end())
 			{
-				if (pt == nullptr) 
+				if (pt == nullptr)
 					return nullptr;
 				it = pws.begin();
 			}
@@ -188,7 +188,7 @@ public:
 		{
 			if (++it == pws.end())
 			{
-				if (pt == nullptr) 
+				if (pt == nullptr)
 					return nullptr;
 				it = pws.begin();
 			}
@@ -247,7 +247,7 @@ RECT PositioningWnd::calcPreviewRect()
 	int iy = static_cast<int>(((h * 1.0) - (h * pc.prvFactor)) / 2.0);
 	InflateRect(&r, -ix, -iy);
 
-	r = ScaleRect(r, F);	
+	r = ScaleRect(r, F);
 	return r;
 }
 
@@ -277,8 +277,12 @@ RECT ScaleRect(RECT& in, FLOAT f)
 struct ScreenToolWnd::Impl
 {
 	Impl(HINSTANCE hInst, HWND hParent, UINT message, WPARAM wParam, LPARAM lParam);
+
+	void ReadConfig();
+	PositioningCfgs ReadPositioningCfgs();
+
 	~Impl();
-			
+
 	HHOOK _hhkCallKeyboardMsg = 0;
 	HWND _hWnd = 0;
 
@@ -294,12 +298,12 @@ struct ScreenToolWnd::Impl
 	//std::vector<RECT> _realScrRects, _previwScrRects, _realPosRects, _previewPosRects;
 	LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 	void OnKeyDown(UINT virtualKey);
-	
+
 	void nextPosWnd(POINT* pt = nullptr)
 	{
 		RECT before = _currentPosWnd ? _currentPosWnd->previewRect : RECT{};
 		if (_currentScreenWnd == nullptr)
-		{ 
+		{
 			_currentScreenWnd = &_screenWnds.front();
 			_currentPosWnd = _currentScreenWnd->next(_currentPosWnd);
 		}
@@ -330,7 +334,7 @@ struct ScreenToolWnd::Impl
 	{
 		RECT before = _currentPosWnd ? _currentPosWnd->previewRect : RECT{};
 		if (_currentScreenWnd == nullptr)
-		{ 
+		{
 			_currentScreenWnd = &_screenWnds.back();
 			_currentPosWnd = _currentScreenWnd->prev(_currentPosWnd);
 		}
@@ -382,12 +386,12 @@ HWND ScreenToolWnd::GetHwnd()
 
 LRESULT ScreenToolWnd::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	return _pImpl->WndProc(hWnd, message, wParam,lParam);
+	return _pImpl->WndProc(hWnd, message, wParam, lParam);
 }
 
 VOID ScreenToolWnd::OnKeyDown(UINT virtualKey)
 {
-	if(_pImpl)
+	if (_pImpl)
 		_pImpl->OnKeyDown(virtualKey);
 }
 
@@ -403,7 +407,7 @@ BOOL ScreenToolWnd::IsScreenToolWnd(HWND hWnd)
 	static wchar_t className[100] = { L'\0' };
 	GetClassName(hWnd, className, 99);
 	return CLASS_NAME.compare(className) == 0;
-} 
+}
 
 
 BOOL CALLBACK Monitorenumproc(HMONITOR hMon, HDC hDC, LPRECT pRECT, LPARAM lParam)
@@ -442,59 +446,19 @@ ScreenToolWnd::Impl::Impl(HINSTANCE hInst, HWND hParent, UINT message, WPARAM wP
 		SystemParametersInfo(SPI_GETWORKAREA, 0, &wa, 0);
 		monInfos.push_back(wa);
 	}
+
+	ReadConfig();
+
 	//std::vector<RECT> scrRects;
 	// MonNr, PrvNr, Name, Left%, Top%, Width%, Height%
-	PositioningCfgs winPositions = {
-		{1, 1, L"Left TwoThirds", 3, 6, 64, 92 },
-		{1, 1, L"Right Third", 67, 6, 31, 92 },
-
-		{1, 1, L"Small Wide Center", 15, 15, 70, 70, 0.8 },
-		{1, 1, L"Mini Wide Center", 25, 25, 50, 50, 0.7 },
-
-		{1, 2, L"Left Third", 3, 6, 31, 92 },
-		{1, 2, L"Right TwoThirds", 34, 6, 64, 92 },
-
-		{1, 2, L"Big Wide Center", 3, 6, 95, 92, 0.65 },
-
-		{1, 2, L"Left Half", 2, 2, 49, 96, 0.8 },
-		{1, 2, L"Right Half", 51, 2, 49, 96, 0.8 },
-
-		{1, 1, L"Top Left", 3, 0, 39, 50, 0.75 },
-		{1, 1, L"Top Right", 58, 0, 39, 50, 0.75 },
-		{1, 1, L"Bottom Left", 3, 50, 39, 50, 0.75 },
-		{1, 1, L"Bottom Right", 58, 50, 39, 50, 0.75 },
-
-		{2, 2, L"Top TwoThirds", 6, 3, 92, 60 , 1 },
-		{2, 2, L"Bottom Third", 6, 63, 92, 35 , 1 },
-
-		{2, 1, L"Top Third", 6, 3, 92, 35, 1.05},
-		{2, 1, L"Bottom TwoThirds", 6, 38, 92, 60, 1.05 },
-
-		{2, 2, L"Top Half", 6, 3, 92, 46, 0.8 },
-		{2, 2, L"Bottom Half", 6, 52, 92, 46, 0.8 },
-
-
-		{2, 2, L"Big Height Center", 6, 4, 92, 95, 0.65 },
-
-		{2, 1, L"Right 1", 6, 03, 92, 10, 0.9 },
-		{2, 1, L"Right 2", 6, 15, 92, 10, 0.9 },
-		{2, 1, L"Right 3", 6, 27, 92, 10, 0.9 },
-		{2, 1, L"Right 4", 6, 39, 92, 10, 0.9 },
-		{2, 1, L"Right 5", 6, 51, 92, 10, 0.9 },
-		{2, 1, L"Right 6", 6, 63, 92, 10, 0.9 },
-		{2, 1, L"Right 7", 6, 75, 92, 10, 0.9 },
-		{2, 1, L"Right 8", 6, 87, 92, 10, 0.9 },
-
-		{2, 1, L"Small Height Center TwoThirds", 15, 15, 70, 70, 0.7 },
-		{2, 1, L"Mini Height Center", 25, 25, 50, 50, 0.7 }
-};
+	PositioningCfgs winPositions = ReadPositioningCfgs();
 
 	using std::views::transform;
 	//using std::views::filter;
 	using std::ranges::min;
 	using std::ranges::max;
 
-	 // determine offset from screens with different resolutions
+	// determine offset from screens with different resolutions
 	LONG ox = min(monInfos | transform([](const RECT& r) {return r.left; }));
 	LONG oy = min(monInfos | transform([](const RECT& r) {return r.top; }));
 
@@ -502,7 +466,7 @@ ScreenToolWnd::Impl::Impl(HINSTANCE hInst, HWND hParent, UINT message, WPARAM wP
 	for (UINT mi = 0, baseOffset = 0; mi < monInfos.size(); ++mi) // monitor-index
 	{
 		auto wps = filter(winPositions, [mi](const PositioningCfg& pc) { return (mi + 1) == pc.monNr; });
-		if(wps.empty())
+		if (wps.empty())
 			continue;
 
 		// the number of previews for this monitor
@@ -530,7 +494,7 @@ ScreenToolWnd::Impl::Impl(HINSTANCE hInst, HWND hParent, UINT message, WPARAM wP
 					return false;
 			};
 
-			for (PositioningCfg& wp : wps | filter( belongToScreenWnd )) {
+			for (PositioningCfg& wp : wps | filter(belongToScreenWnd)) {
 				sw.push_back(wp);
 			}
 
@@ -549,10 +513,10 @@ ScreenToolWnd::Impl::Impl(HINSTANCE hInst, HWND hParent, UINT message, WPARAM wP
 	for (ScreenWnd& sw : _screenWnds)
 	{
 		RECT sr = sw.sr;
-		_toolRect.left = std::min( sr.left, _toolRect.left );
-		_toolRect.top = std::min( sr.top, _toolRect.top );
-		_toolRect.right = std::max( sr.right, _toolRect.right );
-		_toolRect.bottom = std::max( sr.bottom, _toolRect.bottom );
+		_toolRect.left = std::min(sr.left, _toolRect.left);
+		_toolRect.top = std::min(sr.top, _toolRect.top);
+		_toolRect.right = std::max(sr.right, _toolRect.right);
+		_toolRect.bottom = std::max(sr.bottom, _toolRect.bottom);
 	}
 
 	_toolRect = ScaleRect(_toolRect, F);
@@ -581,14 +545,14 @@ ScreenToolWnd::Impl::Impl(HINSTANCE hInst, HWND hParent, UINT message, WPARAM wP
 		WS_EX_TOPMOST, // | WS_EX_TOOLWINDOW,// Optional window styles.
 		CLASS_NAME.c_str(),                     // Window class
 		L"Pick a rectangle",    // Window text
-		WS_POPUP | WS_VISIBLE | WS_BORDER,           
+		WS_POPUP | WS_VISIBLE | WS_BORDER,
 		//WS_OVERLAPPEDWINDOW, // Window style
 
 		// Size and position
 		//CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
 		_toolRect.left, _toolRect.top, w, h,
 
-		hParent,       // Parent window    
+		hParent,       // Parent window
 		NULL,       // Menu
 		hInst,     // Instance handle
 		NULL        // Additional application data
@@ -617,11 +581,11 @@ ScreenToolWnd::Impl::Impl(HINSTANCE hInst, HWND hParent, UINT message, WPARAM wP
 
 DWORD WINAPI KeyThread(LPVOID)
 {
-	while(ScreenToolWnd::pWnd)
+	while (ScreenToolWnd::pWnd)
 	{
 		auto vks = { VK_RETURN, VK_LEFT, VK_RIGHT, VK_UP, VK_DIVIDE };
-		for(auto vk : vks)
-		{ 
+		for (auto vk : vks)
+		{
 			if (HIBYTE(GetAsyncKeyState(vk)))
 				ScreenToolWnd::pWnd->OnKeyDown(vk);
 		}
@@ -636,7 +600,7 @@ ScreenToolWnd::Impl::~Impl()
 
 		hWndToImplMap.erase(_hWnd);
 		//SendMessage(_hWnd, WM_CLOSE, 0, 0);
-		if(IsWindow(_hWnd))
+		if (IsWindow(_hWnd))
 			DestroyWindow(_hWnd);
 	}
 }
@@ -689,12 +653,12 @@ LRESULT ScreenToolWnd::Impl::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPA
 	//auto posRects = std::ranges::filter_view(_previewPosRects, [pt](RECT r) { return PtInRect(&r, pt); });
 
 	switch (message)
-	{		
-	//case WM_CREATE:
-	//{
-	//	SetTimer(hWnd, 13, 25000, (TIMERPROC)NULL);
-	//	break;
-	//}
+	{
+		//case WM_CREATE:
+		//{
+		//	SetTimer(hWnd, 13, 25000, (TIMERPROC)NULL);
+		//	break;
+		//}
 	case WM_TIMER:
 	{
 		if (wParam == CLOSE_TIMER)
@@ -804,7 +768,7 @@ LRESULT ScreenToolWnd::Impl::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPA
 			PositioningWnd* posWnd = sw.find(pt);
 			if (_currentPosWnd != posWnd)
 			{
-				if(_currentPosWnd)
+				if (_currentPosWnd)
 					InvalidateRect(hWnd, &_currentPosWnd->previewRect, TRUE);
 				_currentPosWnd = posWnd;
 				if (_currentPosWnd)
@@ -864,7 +828,7 @@ LRESULT ScreenToolWnd::Impl::ToolWndProc(HWND hWnd, UINT message, WPARAM wParam,
 }
 
 template<typename It, typename Ct>
-inline It ScreenToolWnd::Impl::NextPos(It it, Ct& posRects)
+inline It ScreenToolWnd::Impl::NextPos(It it, Ct & posRects)
 {
 	if (it == posRects.end())
 		it = posRects.begin();
@@ -875,7 +839,7 @@ inline It ScreenToolWnd::Impl::NextPos(It it, Ct& posRects)
 }
 
 template<typename It, typename Ct>
-inline It ScreenToolWnd::Impl::PreviousPos(It it, Ct& posRects)
+inline It ScreenToolWnd::Impl::PreviousPos(It it, Ct & posRects)
 {
 	if (it == posRects.begin())
 		it = (--posRects.end());
@@ -885,10 +849,176 @@ inline It ScreenToolWnd::Impl::PreviousPos(It it, Ct& posRects)
 	return it;
 }
 
+#pragma warning(push)
+#pragma warning( disable : 33010 26451 26495 26819 )
+#include "../rapidjson/filereadstream.h"
+#include "../rapidjson/filewritestream.h"
+#include "../rapidjson/document.h"
+#include <../rapidjson/writer.h>
+#include <cstdio>
+#include <processenv.h>
+#include <locale>
+#include <codecvt>
+#include <fstream>
+
+void ScreenToolWnd::Impl::ReadConfig()
+{
+	using namespace rapidjson;
+
+	static const char* defaultConfig = 
+R"(
+{
+	"prvFactor" : 0.1,
+	"closeTimeout" : 3500,
+}
+)";
+
+	char buffer[4096] = {0};
+	char path[MAX_PATH];
+	ExpandEnvironmentStringsA(R"(%APPDATA%\MenuTools\Config.jsonc)", path, MAX_PATH);
+	FILE* fp = nullptr;
+	errno_t res = fopen_s(&fp, path, "rb"); // non-Windows use "r"
+	if (fp == nullptr)
+	{
+		char dir[MAX_PATH];
+		ExpandEnvironmentStringsA(R"(%APPDATA%\MenuTools)", dir, MAX_PATH);
+
+		CreateDirectoryA(dir, NULL);
+		{
+			std::ofstream os(path);
+			os << defaultConfig << std::endl;
+		}
+
+		res = fopen_s(&fp, path, "rb"); // non-Windows use "r"
+		assert(fp != nullptr);
+
+	}
+
+	FileReadStream is(fp, buffer, sizeof(buffer));
+	fclose(fp);
+
+	Document d;
+	d.ParseStream<kParseCommentsFlag | kParseTrailingCommasFlag>(is);
+
+	if(d.HasMember("prvFactor"))
+		F = d["prvFactor"].GetFloat();
+
+	if(d.HasMember("closeTimeout"))
+		CLOSE_TIMEOUT = d["closeTimeout"].GetUint();
+}
+
+PositioningCfgs ScreenToolWnd::Impl::ReadPositioningCfgs()
+{
+	using namespace rapidjson;
+#pragma region PositioningCfgs
+	static const char* defaultWinPositionsStr = R"(
+{
+	"winPositions": [
+		{ "monNr": 1, "prvNr": 1, "x":  3, "y":  6, "w": 64, "h": 92, "name": "Left TwoThirds"												},
+		{ "monNr": 1, "prvNr": 1, "x": 34, "y":  6, "w": 64, "h": 92, "name": "Right TwoThirds"											},
+		{ "monNr": 1, "prvNr": 1, "x": 15, "y": 15, "w": 70, "h": 70, "name": "Small Wide Center",				"prvFactor": 0.9	},
+		{ "monNr": 1, "prvNr": 1, "x": 25, "y": 25, "w": 50, "h": 50, "name": "Mini Wide Center",					"prvFactor": 0.7	},
+		{ "monNr": 1, "prvNr": 1, "x":  3, "y":  0, "w": 39, "h": 50, "name": "Top Left",				 			"prvFactor": 0.65	},
+		{ "monNr": 1, "prvNr": 1, "x": 58, "y":  0, "w": 39, "h": 50, "name": "Top Right",				 			"prvFactor": 0.65	},
+		{ "monNr": 1, "prvNr": 1, "x":  3, "y": 50, "w": 39, "h": 50, "name": "Bottom Left",			 			"prvFactor": 0.65	},
+		{ "monNr": 1, "prvNr": 1, "x": 58, "y": 50, "w": 39, "h": 50, "name": "Bottom Right",			 			"prvFactor": 0.65	},
+
+		{ "monNr": 1, "prvNr": 2, "x":  3, "y":  6, "w": 31, "h": 92, "name": "Left Third"													},
+		{ "monNr": 1, "prvNr": 2, "x": 34, "y":  6, "w": 31, "h": 92, "name": "Middle Third"													},
+		{ "monNr": 1, "prvNr": 2, "x": 67, "y":  6, "w": 31, "h": 92, "name": "Right Third"													},
+		{ "monNr": 1, "prvNr": 2, "x":  3, "y":  6, "w": 95, "h": 92, "name": "Big Wide Center",					"prvFactor": 0.8	},
+		{ "monNr": 1, "prvNr": 2, "x":  2, "y":  2, "w": 49, "h": 96, "name": "Left Half",							"prvFactor": 0.65	},
+		{ "monNr": 1, "prvNr": 2, "x": 51, "y":  2, "w": 49, "h": 96, "name": "Right Half",				 			"prvFactor": 0.65	},
+
+		// { "monNr": 1, "prvNr": 3, "x":  2, "y":   2, "w": 96, "h": 30, "name": "Top Third",							"prvFactor": 1	},
+		// { "monNr": 1, "prvNr": 3, "x":  2, "y":  34, "w": 96, "h": 30, "name": "Middle Third",				 		"prvFactor": 1	},
+		// { "monNr": 1, "prvNr": 3, "x":  2, "y":  66, "w": 96, "h": 30, "name": "Bottom Third",				 		"prvFactor": 1	},
+
+		{ "monNr": 2, "prvNr": 2, "x":  6, "y":  3, "w": 92, "h": 60, "name": "Top TwoThirds",			 			"prvFactor": 1.0	},
+		{ "monNr": 2, "prvNr": 2, "x":  6, "y": 63, "w": 92, "h": 35, "name": "Bottom Third",			 			"prvFactor": 1.0	},
+
+		{ "monNr": 2, "prvNr": 1, "x":  6, "y":  3, "w": 92, "h": 35, "name": "Top Third",				 			"prvFactor": 1.05	},
+		{ "monNr": 2, "prvNr": 1, "x":  6, "y": 38, "w": 92, "h": 60, "name": "Bottom TwoThirds",		 			"prvFactor": 1.05	},
+
+		{ "monNr": 2, "prvNr": 2, "x":  6, "y":  3, "w": 92, "h": 46, "name": "Top Half",				 			"prvFactor": 0.8	},
+		{ "monNr": 2, "prvNr": 2, "x":  6, "y": 52, "w": 92, "h": 46, "name": "Bottom Half",			 			"prvFactor": 0.8	},
+		{ "monNr": 2, "prvNr": 2, "x":  6, "y":  4, "w": 92, "h": 95, "name": "Big Height Center",	 			"prvFactor": 0.65	},
+
+		{ "monNr": 2, "prvNr": 1, "x":  6, "y":  3, "w": 92, "h": 10, "name": "Right 1",					 			"prvFactor": 0.9	},
+		{ "monNr": 2, "prvNr": 1, "x":  6, "y": 15, "w": 92, "h": 10, "name": "Right 2",					 			"prvFactor": 0.9	},
+		{ "monNr": 2, "prvNr": 1, "x":  6, "y": 27, "w": 92, "h": 10, "name": "Right 3",					 			"prvFactor": 0.9	},
+		{ "monNr": 2, "prvNr": 1, "x":  6, "y": 39, "w": 92, "h": 10, "name": "Right 4",					 			"prvFactor": 0.9	},
+		{ "monNr": 2, "prvNr": 1, "x":  6, "y": 51, "w": 92, "h": 10, "name": "Right 5",					 			"prvFactor": 0.9	},
+		{ "monNr": 2, "prvNr": 1, "x":  6, "y": 63, "w": 92, "h": 10, "name": "Right 6",					 			"prvFactor": 0.9	},
+		{ "monNr": 2, "prvNr": 1, "x":  6, "y": 75, "w": 92, "h": 10, "name": "Right 7",					 			"prvFactor": 0.9	},
+		{ "monNr": 2, "prvNr": 1, "x":  6, "y": 87, "w": 92, "h": 10, "name": "Right 8",					 			"prvFactor": 0.9	},
+
+		{ "monNr": 2, "prvNr": 1, "x": 15, "y": 15, "w": 70, "h": 70, "name": "Small Height Center TwoThirds","prvFactor": 0.7	},
+		{ "monNr": 2, "prvNr": 1, "x": 25, "y": 25, "w": 50, "h": 50, "name": "Mini Height Center", 				"prvFactor": 0.7	},
+	]
+}
+)";
+#pragma endregion PositioningCfgs
+	char buffer[4096] = {0};
+	char path[MAX_PATH];
+	ExpandEnvironmentStringsA(R"(%APPDATA%\MenuTools\PositioningCfgs.jsonc)", path, MAX_PATH);
+
+	FILE* fp = nullptr;
+	errno_t res = fopen_s(&fp, path, "rb"); // non-Windows use "r"
+	if (fp == nullptr)
+	{
+		char dir[MAX_PATH];
+		ExpandEnvironmentStringsA(R"(%APPDATA%\MenuTools)", dir, MAX_PATH);
+
+		CreateDirectoryA(dir, NULL);
+		{
+			std::ofstream os(path);
+			os << defaultWinPositionsStr << std::endl;
+		}
+
+		res = fopen_s(&fp, path, "rb"); // non-Windows use "r"
+		assert(fp != nullptr);
+
+	}
+
+	FileReadStream is(fp, buffer, sizeof(buffer));
+
+	Document d;
+	d.ParseStream<kParseCommentsFlag|kParseTrailingCommasFlag>(is);
+
+	const Value& wpJson = d["winPositions"];
+	assert(wpJson.IsArray());
+
+	PositioningCfgs winPositions;
+
+	//std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+
+	for (SizeType i = 0; i < wpJson.Size(); i++) // Uses SizeType instead of size_t
+	{
+		auto& wp = wpJson[i];
+		std::string n = wp["name"].GetString();
+		float prvFactor = wp.HasMember("prvFactor") ? wp["prvFactor"].GetFloat() : 1.0f;
+		PositioningCfg positioningCfg = {
+			wp["monNr"].GetInt(),
+			wp["prvNr"].GetInt(),
+			wstring(n.begin(), n.end()),
+			wp["x"].GetInt(),
+			wp["y"].GetInt(),
+			wp["w"].GetInt(),
+			wp["h"].GetInt(),
+			prvFactor
+		};
+		winPositions.push_back(positioningCfg);
+	}
+
+	fclose(fp);
+
+	return winPositions;
+}
 
 //RECT ScreenToolWnd::Impl::Calculate(PositioningCfg& wp, Screen& s)
 //{
-//	RECT r = { 
+//	RECT r = {
 //		static_cast<LONG>(s.x + wp.x * (s.w / 100.0)),
 //		static_cast<LONG>(s.y + wp.y * (s.h / 100.0)),
 //	};
@@ -897,3 +1027,4 @@ inline It ScreenToolWnd::Impl::PreviousPos(It it, Ct& posRects)
 //	return r;
 //}
 
+#pragma warning(pop)
