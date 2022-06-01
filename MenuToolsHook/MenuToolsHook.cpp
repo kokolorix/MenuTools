@@ -96,6 +96,7 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		return TRUE;
 		break;
 	}
+
 	case WM_ACTIVATE:
 	{
 		if (wParam == WA_CLICKACTIVE)
@@ -103,17 +104,13 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			activated = true;
 			return TRUE;
 		}
+		break;
 	}
 
 	case WM_NCLBUTTONDOWN: 
 	{
 		dblClick = false;
 		last_lbutton_down = std::chrono::high_resolution_clock::now();
-		if (activated)
-		{
-			activated = false;
-			return TRUE;
-		}
 
 		POINT	bd = {										// button down
 				GET_X_LPARAM(lParam),
@@ -139,6 +136,12 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				return TRUE;						
 			}
 
+			if (activated)
+			{
+				activated = false;
+				return TRUE;
+			}
+
 			//BYTE ks = HIBYTE(GetAsyncKeyState(VK_CONTROL) + GetAsyncKeyState(VK_SHIFT));
 			//if(!ks)
 			//if (!is_one_of((signed)wParam, MK_CONTROL, MK_SHIFT))
@@ -148,7 +151,6 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{
 					auto toWait = GetDoubleClickTime() / 2;
 					Sleep(toWait);
-
 
 					if (!HIBYTE(GetAsyncKeyState(VK_LBUTTON))) {
 						POINT pt;
@@ -170,9 +172,13 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 								log_debug(L"ScreenToolWnd::pWnd: {}", (void*)ScreenToolWnd::pWnd.get());
 								{
 									//HWND hActive = ::GetForegroundWindow();
-									if (!dblClick)
+									if (!dblClick && !activated)
 									{
 										PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
+									}
+									else
+									{
+										activated = false;
 									}
 								}
 							}
