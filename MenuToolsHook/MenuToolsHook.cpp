@@ -31,6 +31,7 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	static POINT lastButtonDown = { 0 };
 	static WPARAM lastHitTest = 0;
 	static bool dblClick = false;
+	static bool activated = false;
 
 	//static const UINT_PTR TIMER_ID = 13578;
 
@@ -95,7 +96,17 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		return TRUE;
 		break;
 	}
-	//case WM_LBUTTONDOWN: 
+
+	case WM_ACTIVATE:
+	{
+		if (wParam == WA_CLICKACTIVE)
+		{
+			activated = true;
+			return TRUE;
+		}
+		break;
+	}
+
 	case WM_NCLBUTTONDOWN: 
 	{
 		dblClick = false;
@@ -125,6 +136,12 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				return TRUE;						
 			}
 
+			if (activated)
+			{
+				activated = false;
+				return TRUE;
+			}
+
 			//BYTE ks = HIBYTE(GetAsyncKeyState(VK_CONTROL) + GetAsyncKeyState(VK_SHIFT));
 			//if(!ks)
 			//if (!is_one_of((signed)wParam, MK_CONTROL, MK_SHIFT))
@@ -134,7 +151,6 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				{
 					auto toWait = GetDoubleClickTime() / 2;
 					Sleep(toWait);
-
 
 					if (!HIBYTE(GetAsyncKeyState(VK_LBUTTON))) {
 						POINT pt;
@@ -155,9 +171,14 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 							{
 								log_debug(L"ScreenToolWnd::pWnd: {}", (void*)ScreenToolWnd::pWnd.get());
 								{
-									if (!dblClick)
+									//HWND hActive = ::GetForegroundWindow();
+									if (!dblClick && !activated)
 									{
 										PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
+									}
+									else
+									{
+										activated = false;
 									}
 								}
 							}

@@ -66,8 +66,9 @@ public:
 using PositioningWnds = std::vector<PositioningWnd>;
 
 struct ScreenWnd {
-	ScreenWnd(RECT& r, UINT s, UINT p, UINT po, POINT so)
-		: _scrRect(r)
+	ScreenWnd(RECT& mr, RECT& r, UINT s, UINT p, UINT po, POINT so)
+		: _monRect(mr)
+		, _scrRect(r)
 		, _monNr(s)
 		, _prvNr(p)
 		, _prvOffset(po)
@@ -83,7 +84,7 @@ struct ScreenWnd {
 	}
 
 private:
-
+	RECT _monRect;
 	UINT _monNr; ///> Screen Nr
 	UINT _prvNr; ///> Preview Nr
 	UINT _prvOffset = 0; ///> Offset of preview, if multiple previews are available
@@ -101,6 +102,7 @@ public:
 	PropR<UINT, ScreenWnd, &ScreenWnd::_prvNr> prvNr = { this };
 	PropR<UINT, ScreenWnd, &ScreenWnd::_prvOffset> prvOffset = { this };
 	PropR<POINT, ScreenWnd, &ScreenWnd::_scrOffset> scrOffset = { this };
+	PropR<RECT> mr = { [this]() { return _monRect; } };
 	PropR<RECT> pr = { [this]() { return _prvRect; } };
 	PropR<RECT> sr = { [this]() { return _scrRect; } };
 	PropR<LONG> x = { [this]() { return _scrRect.left; } };
@@ -481,7 +483,7 @@ ScreenToolWnd::Impl::Impl(HINSTANCE hInst, HWND hParent, UINT message, WPARAM wP
 			OffsetRect(&ri, (signed)baseOffset, 0);
 			OffsetRect(&ri, -ox, -oy);
 
-			ScreenWnd sw(ScreenWnd(ri, mi + 1, pi + 1, baseOffset, { ox, oy }));
+			ScreenWnd sw(ScreenWnd(monRect, ri, mi + 1, pi + 1, baseOffset, { ox, oy }));
 
 			// add the monitor width to the baseOffset
 			baseOffset += monWidth;
@@ -530,16 +532,16 @@ ScreenToolWnd::Impl::Impl(HINSTANCE hInst, HWND hParent, UINT message, WPARAM wP
 
 	{
 		using std::ranges::find_if;
-		RECT wr;
-		GetWindowRect(hParent, &wr);
-		//if (auto it = find_if(_realPosRects, [&wr](RECT& r) {return EqualRect(&r, &wr); }); it != _realPosRects.end())
-		//{
-		//	size_t i = std::distance(_realPosRects.begin(), it);
-		//	_currentPreviewPos = _previewPosRects[i];
-		//}
+		if (auto it = find_if(monInfos.rbegin(), monInfos.rend(), [pt](RECT& mr) { return PtInRect(&mr, pt); }); it != monInfos.rend()) 
+		{
+			RECT mr = *it;
+			if (_toolRect.right > mr.right)
+				OffsetRect(&_toolRect, -(_toolRect.right - mr.right), 0);
+
+			if (_toolRect.left < mr.left)
+				OffsetRect(&_toolRect, (mr.left - _toolRect.left), 0);
+		}
 	}
-
-
 
 	_hWnd = CreateWindowEx(
 		WS_EX_TOPMOST, // | WS_EX_TOOLWINDOW,// Optional window styles.
