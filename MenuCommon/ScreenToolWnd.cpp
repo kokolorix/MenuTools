@@ -23,6 +23,9 @@ namespace
 	const UINT CLOSE_TIMER = 0x30;
 	UINT CLOSE_TIMEOUT = 3500;
 }
+
+BOOL GLOBAL_DEACTIVATED = FALSE;
+
 RECT ScaleRect(RECT& in, FLOAT f);
 DWORD WINAPI KeyThread(LPVOID);
 
@@ -280,7 +283,7 @@ struct ScreenToolWnd::Impl
 {
 	Impl(HINSTANCE hInst, HWND hParent, UINT message, WPARAM wParam, LPARAM lParam);
 
-	void ReadConfig();
+	static void ReadConfig();
 	PositioningCfgs ReadPositioningCfgs();
 
 	~Impl();
@@ -409,6 +412,14 @@ BOOL ScreenToolWnd::IsScreenToolWnd(HWND hWnd)
 	static wchar_t className[100] = { L'\0' };
 	GetClassName(hWnd, className, 99);
 	return CLASS_NAME.compare(className) == 0;
+}
+
+void ScreenToolWnd::ReadConfig(HWND hWnd)
+{
+	ScreenToolWnd::Impl::ReadConfig();
+	//ScreenToolWnd::Impl* pImpl = ScreenToolWnd::Impl::hWndToImplMap[hWnd];
+	//if (pImpl)
+	//	return pImpl->ReadConfig();
 }
 
 
@@ -872,6 +883,7 @@ R"(
 {
 	"prvFactor" : 0.1,
 	"closeTimeout" : 3500,
+	"deactivated" : false,
 }
 )";
 
@@ -902,7 +914,10 @@ R"(
 	Document d;
 	d.ParseStream<kParseCommentsFlag | kParseTrailingCommasFlag>(is);
 
-	if(d.HasMember("prvFactor"))
+	if(d.HasMember("deactivated"))
+		GLOBAL_DEACTIVATED = d["deactivated"].GetBool();
+
+	if (d.HasMember("prvFactor"))
 		F = d["prvFactor"].GetFloat();
 
 	if(d.HasMember("closeTimeout"))

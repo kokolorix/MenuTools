@@ -19,6 +19,7 @@
 #define WM_GETSYSMENU						0x313
 
 extern HINSTANCE hInst;
+extern BOOL GLOBAL_DEACTIVATED;
 
 void InflateWnd(const LONG& diff, const HWND& hWnd);
 
@@ -32,6 +33,10 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	static WPARAM lastHitTest = 0;
 	static bool dblClick = false;
 	static bool activated = false;
+
+	ScreenToolWnd::ReadConfig(hWnd);
+	if (GLOBAL_DEACTIVATED)
+		return TRUE;
 
 	//static const UINT_PTR TIMER_ID = 13578;
 
