@@ -15,6 +15,18 @@
 #define IDD_DIALOG1                     129
 #define IDC_STATIC                      -1
 
+
+#define IDB_BUTTONIMAGES_96             1001
+#define IDB_BUTTONIMAGES_120            1002
+#define IDB_BUTTONIMAGES_144            1003
+
+#define IDI_THUMBNAILTOOLBAR            1004
+#define IDC_THUMBNAILTOOLBAR            1005
+
+#define IDTB_BUTTON1                    40002
+#define IDTB_BUTTON2                    40003
+#define IDTB_BUTTON3                    40004
+
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED

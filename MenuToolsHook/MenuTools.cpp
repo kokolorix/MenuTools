@@ -4,6 +4,16 @@
 #include "MenuCommon/TrayIcon.h"
 #include <MenuCommon/ScreenToolWnd.h>
 
+#include <shobjidl.h>   // For ITaskbarList3
+#pragma comment(lib, "comctl32.lib")
+
+#include <windows.h>
+#include <strsafe.h>
+
+#include "resource.h"
+
+extern HINSTANCE hInst;
+
 // Window information
 LONG wndOldWidth = -1;
 LONG wndOldHeight = -1;
@@ -279,13 +289,13 @@ BOOL MenuTools::TrayProc(HWND hWnd, WPARAM wParam, LPARAM lParam)
 	return FALSE;
 }
 
+
 BOOL MenuTools::WndProc(HWND hWnd, WPARAM wParam, LPARAM lParam)
 {
 	UNREFERENCED_PARAMETER(lParam);
 
 	int wmId = wParam & 0xFFF0;
 
-	// Handle menu messages
 	switch (wmId)
 	{
 		// Priority
@@ -389,8 +399,9 @@ BOOL MenuTools::WndProc(HWND hWnd, WPARAM wParam, LPARAM lParam)
 	{
 		char dir[MAX_PATH];
 		ExpandEnvironmentStringsA(R"(%APPDATA%\MenuTools)", dir, MAX_PATH);
-		std::string cmd = "start ";
+		std::string cmd = "start notepad++ ";
 		cmd += dir;
+		cmd += "\\Config.jsonc";
 		system(cmd.c_str());
 		return TRUE;
 	}
@@ -532,3 +543,83 @@ BOOL IsMenuItem(HMENU hMenu, UINT item)
 
 	return GetMenuItemInfo(hMenu, item, FALSE, &mmi);
 }
+
+HRESULT CreateThumbnailToolbar(HWND hWnd)
+{
+	ITaskbarList3* pTaskbarList;
+	HRESULT hr = CoCreateInstance(CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pTaskbarList));
+	if (SUCCEEDED(hr))
+	{
+		hr = pTaskbarList->HrInit();
+		if (SUCCEEDED(hr))
+		{
+			// Figure out what bitmap to use for the thumbnail toolbar buttons - we
+			// make the decision based on the system's small icon width. This will make
+			// us DPI-friendly.
+			struct
+			{
+				PCWSTR pbmp;
+				int cx;
+			}
+			const bitmaps[3] =
+			{
+				 { MAKEINTRESOURCE(IDB_BUTTONIMAGES_96),  16 },
+				 { MAKEINTRESOURCE(IDB_BUTTONIMAGES_120), 20 },
+				 { MAKEINTRESOURCE(IDB_BUTTONIMAGES_144), 24 }
+			};
+
+			int const cxButton = GetSystemMetrics(SM_CXSMICON);
+
+			int iButtons = 0;
+			for (int i = 0; i < ARRAYSIZE(bitmaps); i++)
+			{
+				if (bitmaps[i].cx <= cxButton)
+				{
+					iButtons = i;
+				}
+			}
+
+			HIMAGELIST himl = ImageList_LoadImage(hInst, bitmaps[iButtons].pbmp,
+				bitmaps[iButtons].cx, 0, RGB(255, 0, 255), IMAGE_BITMAP, LR_CREATEDIBSECTION);
+			if (himl)
+			{
+				hr = pTaskbarList->ThumbBarSetImageList(hWnd, himl);
+				if (SUCCEEDED(hr))
+				{
+					THUMBBUTTON buttons[3] = {};
+
+					// First button
+					buttons[0].dwMask = THB_BITMAP | THB_TOOLTIP | THB_FLAGS;
+					buttons[0].dwFlags = THBF_ENABLED | THBF_DISMISSONCLICK;
+					buttons[0].iId = IDTB_BUTTON1;
+					buttons[0].iBitmap = 0;
+					StringCchCopy(buttons[0].szTip, ARRAYSIZE(buttons[0].szTip), L"Button 1");
+
+					// Second button
+					buttons[1].dwMask = THB_BITMAP | THB_TOOLTIP | THB_FLAGS;
+					buttons[1].dwFlags = THBF_ENABLED | THBF_DISMISSONCLICK;
+					buttons[1].iId = IDTB_BUTTON2;
+					buttons[1].iBitmap = 1;
+					StringCchCopy(buttons[1].szTip, ARRAYSIZE(buttons[1].szTip), L"Button 2");
+
+					// Third button
+					buttons[2].dwMask = THB_BITMAP | THB_TOOLTIP | THB_FLAGS;
+					buttons[2].dwFlags = THBF_ENABLED | THBF_DISMISSONCLICK;
+					buttons[2].iId = IDTB_BUTTON3;
+					buttons[2].iBitmap = 2;
+					StringCchCopy(buttons[2].szTip, ARRAYSIZE(buttons[2].szTip), L"Button 3");
+
+					// Set the buttons to be the thumbnail toolbar
+					hr = pTaskbarList->ThumbBarAddButtons(hWnd, ARRAYSIZE(buttons), buttons);
+				}
+				ImageList_Destroy(himl);
+			}
+		}
+
+		// It's OK to release ITaskbarList3 here; the thumbnail toolbar will remain.
+		pTaskbarList->Release();
+	}
+
+	return hr;
+}
+

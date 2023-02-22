@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "TestApp.h"
+#include <objbase.h>
 
 #define MAX_LOADSTRING 100
 
@@ -35,6 +36,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(lpCmdLine);
 
     // TODO: Place code here.
+	 HRESULT hrInit = CoInitialize(NULL);    // Initialize COM so we can call CoCreateInstance
+	 if (FAILED(hrInit))
+		 return FALSE;
 
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -47,6 +51,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     {
         return FALSE;
     }
+
+
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_TESTAPP));
 
@@ -106,21 +112,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     hhkCallWndProc = SetWindowsHookEx(WH_CALLWNDPROC, hkCallWndProc, NULL, dwThreadId);
     if (!hhkCallWndProc)
     {
-        return FALSE;
+		 CoUninitialize();
+       return FALSE;
     }
 
     // Set hook on GetMessage
     hhkGetMessage = SetWindowsHookEx(WH_GETMESSAGE, hkGetMsgProc, NULL, dwThreadId);
     if (!hhkGetMessage)
     {
-        return FALSE;
+		 CoUninitialize();
+       return FALSE;
     }
 
 	 // Set hook on Keyboard
     hhkCallKeyboardMsg = SetWindowsHookEx(WH_KEYBOARD, hkCallKeyboardMsg, NULL, dwThreadId);
     if (!hhkGetMessage)
     {
-        return FALSE;
+		 CoUninitialize();
+		 return FALSE;
     }
 
     MSG msg;
@@ -134,6 +143,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             DispatchMessage(&msg);
         }
     }
+
+	 CoUninitialize();
 
     return (int) msg.wParam;
 }
@@ -203,6 +214,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    return TRUE;
 }
 
+HRESULT CreateThumbnailToolbar(HWND hWnd);
+
 //
 //  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
 //
@@ -215,7 +228,28 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    switch (message)
+	static UINT wmTaskbarButtonCreated = WM_NULL;
+
+	if (wmTaskbarButtonCreated == WM_NULL)
+	{
+		// Compute the value for the TaskbarButtonCreated message
+		wmTaskbarButtonCreated = RegisterWindowMessage(L"TaskbarButtonCreated");
+
+		// In case the application is run elevated, allow the
+		// TaskbarButtonCreated and WM_COMMAND messages through.
+		ChangeWindowMessageFilter(wmTaskbarButtonCreated, MSGFLT_ADD);
+		ChangeWindowMessageFilter(WM_COMMAND, MSGFLT_ADD);
+	}
+
+	if (message == wmTaskbarButtonCreated)
+	{
+		// Once we get the TaskbarButtonCreated message, we can create
+		// our window's thumbnail toolbar.
+		HRESULT hThumbnailToolbar = CreateThumbnailToolbar(hWnd);
+	}
+
+	// Handle menu messages
+	else switch (message)
     {
     case WM_COMMAND:
         {
