@@ -167,6 +167,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="MenuTools.h" />
+    <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
@@ -197,6 +198,14 @@
   <ItemGroup>
     <None Include="MenuToolsHook.def" />
     <None Include="MenuToolsHook64.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="buttons120.bmp" />
+    <Image Include="buttons144.bmp" />
+    <Image Include="buttons96.bmp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="MenuToolsHook.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

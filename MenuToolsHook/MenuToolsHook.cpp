@@ -15,6 +15,7 @@
 
 #include <Shlwapi.h>
 #pragma comment(lib, "Shlwapi.lib")
+#include <objbase.h>
 
 #define WM_GETSYSMENU						0x313
 
@@ -22,6 +23,7 @@ extern HINSTANCE hInst;
 extern BOOL GLOBAL_DEACTIVATED;
 
 void InflateWnd(const LONG& diff, const HWND& hWnd);
+BOOL InitializeThumbnailToolbar(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 // Process messages
 LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
@@ -43,7 +45,11 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	//static UINT_PTR timer = NULL;
 	//if(!timer)
 	//	timer = SetTimer(hWnd, TIMER_ID, 300, (TIMERPROC)NULL);
-
+	//if (
+	InitializeThumbnailToolbar(hWnd, message, wParam, lParam);
+		//)
+	//	return TRUE;
+	//else
 
 	switch (message)
 	{

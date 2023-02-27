@@ -551,6 +551,9 @@ ScreenToolWnd::Impl::Impl(HINSTANCE hInst, HWND hParent, UINT message, WPARAM wP
 
 			if (_toolRect.left < mr.left)
 				OffsetRect(&_toolRect, (mr.left - _toolRect.left), 0);
+
+			if(_toolRect.top > mr.bottom - h)
+				OffsetRect(&_toolRect, 0, -(_toolRect.top - (mr.bottom - h)));
 		}
 	}
 
@@ -614,7 +617,11 @@ ScreenToolWnd::Impl::~Impl()
 		hWndToImplMap.erase(_hWnd);
 		//SendMessage(_hWnd, WM_CLOSE, 0, 0);
 		if (IsWindow(_hWnd))
-			DestroyWindow(_hWnd);
+		{
+			PostMessage(_hWnd, WM_DESTROY, 0, 0);
+			PostMessage(_hWnd, WM_NCDESTROY, 0, 0);
+		}
+			//DestroyWindow(_hWnd);
 	}
 }
 
@@ -756,6 +763,8 @@ LRESULT ScreenToolWnd::Impl::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPA
 
 	case WM_LBUTTONDOWN:
 	{
+		//DebugBreak();
+
 		if (_currentPosWnd)
 		{
 			RECT wr = _currentPosWnd->screenRect;

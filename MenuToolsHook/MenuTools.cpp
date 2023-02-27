@@ -383,15 +383,56 @@ BOOL MenuTools::WndProc(HWND hWnd, WPARAM wParam, LPARAM lParam)
 	}
 
 	case MT_MENU_OPEN_WIN_POS:
+	case MT_MENU_OPEN_WIN_POS1:
 	{
 		RECT wr;
+		//if(IsIconic(hWnd))
+		//if(wmId == MT_MENU_OPEN_WIN_POS1)
+		//{
+		//	HWND taskbarHandle = FindWindow(L"Shell_TrayWnd", NULL);
+		//	HWND startButtonHandle = FindWindowEx(taskbarHandle, NULL, L"Button", NULL);
+		//	GetWindowRect(startButtonHandle, &wr);
+		//	int taskbarWidth = wr.right - wr.left;
+		//	int taskbarHeight = wr.bottom - wr.top;
+
+			//HWND buttonHandle = (HWND)wParam;
+			//RECT wr;
+			//GetWindowRect(buttonHandle, &wr);
+			//int x = LOWORD(lParam);
+			//int y = HIWORD(lParam);
+			//int offsetX = x - wr.left;
+			//int offsetY = y - wr.top;
+		//}
+		//else
+		//{
+		//}
 		GetWindowRect(hWnd, &wr);
 		int caption = GetSystemMetrics(SM_CYCAPTION);
-		POINT pt = {
-			wr.left + ((wr.right - wr.left) / 2),
-			wr.top + (caption / 2)
-		};
-		PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
+		POINT pt = { 0 };
+		//if(IsIconic(hWnd))
+		if (wmId == MT_MENU_OPEN_WIN_POS1)
+		{
+			GetCursorPos(&pt);
+		}
+		else
+		{
+			POINT tmp = {
+				wr.left + ((wr.right - wr.left) / 2),
+				wr.top + (caption / 2)
+			};
+			pt = tmp;
+		}
+
+		std::thread t1([hWnd, wParam, pt]()
+			{
+				PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
+			});
+		t1.join();
+		//POINT pt = {
+		//	wr.left + ((wr.right - wr.left) / 2),
+		//	wr.top + (caption / 2)
+		//};
+		//PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
 		return TRUE;
 	}
 	
@@ -543,6 +584,32 @@ BOOL IsMenuItem(HMENU hMenu, UINT item)
 
 	return GetMenuItemInfo(hMenu, item, FALSE, &mmi);
 }
+HRESULT CreateThumbnailToolbar(HWND hWnd);
+
+BOOL InitializeThumbnailToolbar(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	static UINT wmTaskbarButtonCreated = WM_NULL;
+
+	if (wmTaskbarButtonCreated == WM_NULL)
+	{
+		// Compute the value for the TaskbarButtonCreated message
+		wmTaskbarButtonCreated = RegisterWindowMessage(L"TaskbarButtonCreated");
+
+		// In case the application is run elevated, allow the
+		// TaskbarButtonCreated and WM_COMMAND messages through.
+		ChangeWindowMessageFilter(wmTaskbarButtonCreated, MSGFLT_ADD);
+		ChangeWindowMessageFilter(WM_COMMAND, MSGFLT_ADD);
+	}
+
+	if (message == wmTaskbarButtonCreated)
+	{
+		// Once we get the TaskbarButtonCreated message, we can create
+		// our window's thumbnail toolbar.
+		HRESULT hThumbnailToolbar = CreateThumbnailToolbar(hWnd);
+		return TRUE;
+	}
+	return FALSE;
+}
 
 HRESULT CreateThumbnailToolbar(HWND hWnd)
 {
@@ -578,6 +645,10 @@ HRESULT CreateThumbnailToolbar(HWND hWnd)
 					iButtons = i;
 				}
 			}
+			//hMenuTool = LoadLibrary(L"MenuToolsHook64.dll");
+			//auto hMenuTool = GetModuleHandle(L"MenuToolsHook64.dll");
+
+			HICON hWindows = LoadIcon(hInst, MAKEINTRESOURCE(IDI_WINDOWS));
 
 			HIMAGELIST himl = ImageList_LoadImage(hInst, bitmaps[iButtons].pbmp,
 				bitmaps[iButtons].cx, 0, RGB(255, 0, 255), IMAGE_BITMAP, LR_CREATEDIBSECTION);
@@ -586,28 +657,35 @@ HRESULT CreateThumbnailToolbar(HWND hWnd)
 				hr = pTaskbarList->ThumbBarSetImageList(hWnd, himl);
 				if (SUCCEEDED(hr))
 				{
-					THUMBBUTTON buttons[3] = {};
+					THUMBBUTTON buttons[4] = {};
 
 					// First button
 					buttons[0].dwMask = THB_BITMAP | THB_TOOLTIP | THB_FLAGS;
-					buttons[0].dwFlags = THBF_ENABLED | THBF_DISMISSONCLICK;
-					buttons[0].iId = IDTB_BUTTON1;
+					buttons[0].dwFlags = THBF_ENABLED |  THBF_DISMISSONCLICK;
+					buttons[0].iId = MT_MENU_INC_WIN_SIZE;
 					buttons[0].iBitmap = 0;
 					StringCchCopy(buttons[0].szTip, ARRAYSIZE(buttons[0].szTip), L"Button 1");
 
 					// Second button
 					buttons[1].dwMask = THB_BITMAP | THB_TOOLTIP | THB_FLAGS;
-					buttons[1].dwFlags = THBF_ENABLED | THBF_DISMISSONCLICK;
-					buttons[1].iId = IDTB_BUTTON2;
+					buttons[1].dwFlags = THBF_ENABLED |  THBF_DISMISSONCLICK;
+					buttons[1].iId = MT_MENU_DEC_WIN_SIZE;
 					buttons[1].iBitmap = 1;
 					StringCchCopy(buttons[1].szTip, ARRAYSIZE(buttons[1].szTip), L"Button 2");
 
 					// Third button
 					buttons[2].dwMask = THB_BITMAP | THB_TOOLTIP | THB_FLAGS;
-					buttons[2].dwFlags = THBF_ENABLED | THBF_DISMISSONCLICK;
+					buttons[2].dwFlags = THBF_ENABLED | THBF_HIDDEN | THBF_DISMISSONCLICK;
 					buttons[2].iId = IDTB_BUTTON3;
 					buttons[2].iBitmap = 2;
 					StringCchCopy(buttons[2].szTip, ARRAYSIZE(buttons[2].szTip), L"Button 3");
+
+					// Third button
+					buttons[3].dwMask = THB_ICON | THB_TOOLTIP | THB_FLAGS;
+					buttons[3].dwFlags = THBF_ENABLED | THBF_DISMISSONCLICK;
+					buttons[3].iId = MT_MENU_OPEN_WIN_POS1;
+					buttons[3].hIcon = hWindows;
+					StringCchCopy(buttons[3].szTip, ARRAYSIZE(buttons[3].szTip), L"Open Positioning Window");
 
 					// Set the buttons to be the thumbnail toolbar
 					hr = pTaskbarList->ThumbBarAddButtons(hWnd, ARRAYSIZE(buttons), buttons);

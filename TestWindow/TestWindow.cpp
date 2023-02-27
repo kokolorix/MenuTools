@@ -2,7 +2,8 @@
 //
 
 #include "framework.h"
-#include "TestWindow.h"
+#include "TestWindow.h" 
+#include "resource.h"
 //#include "../MenuCommon/Defines.h"
 
 #define MAX_LOADSTRING 100
@@ -120,6 +121,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    return TRUE;
 }
 
+void AttacheMenuTools(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+void DetachMenuTools(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
 //
 //  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
 //
@@ -146,6 +150,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             case IDM_EXIT:
                 DestroyWindow(hWnd);
                 break;
+
+            case ID_FILE_ATTACHMENUTOOLS:
+               AttacheMenuTools(hWnd, message, wParam, lParam);
+               break;
+
+				case ID_FILE_DETACHMENUTOOLS:
+					DetachMenuTools(hWnd, message, wParam, lParam);
+					break;
+
             default:
                 return DefWindowProc(hWnd, message, wParam, lParam);
             }
@@ -186,4 +199,77 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
     }
     return (INT_PTR)FALSE;
+}
+
+HMODULE hMenuTool = NULL;
+
+HHOOK hhkCallWndProc;
+HHOOK hhkGetMessage;
+HHOOK hhkCallKeyboardMsg;
+
+HOOKPROC hkCallWndProc;
+HOOKPROC hkGetMsgProc;
+HOOKPROC hkCallKeyboardMsg;
+
+#define MT_HOOK_PROC_CWP					"CallWndProc"
+#define MT_HOOK_PROC_GMP					"GetMsgProc"
+#define MT_HOOK_PROC_KYB					"CallKeyboardMsg"
+
+void AttacheMenuTools(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+   hMenuTool = LoadLibrary(L"MenuToolsHook64.dll");
+   if (hMenuTool == NULL)
+      return;
+
+	// CallWndProc function
+	HOOKPROC hkCallWndProc = (HOOKPROC)GetProcAddress(hMenuTool, MT_HOOK_PROC_CWP);
+	if (!hkCallWndProc)
+	{
+		return;
+	}
+
+	// GetMsgProc function
+	HOOKPROC hkGetMsgProc = (HOOKPROC)GetProcAddress(hMenuTool, MT_HOOK_PROC_GMP);
+	if (!hkGetMsgProc)
+	{
+		return;
+	}
+
+
+	HOOKPROC hkCallKeyboardMsg = (HOOKPROC)GetProcAddress(hMenuTool, MT_HOOK_PROC_KYB);
+	if (!hkCallKeyboardMsg)
+	{
+		return;
+	}
+
+	DWORD dwThreadId = ::GetCurrentThreadId();
+
+	// Set hook on CallWndProc
+	hhkCallWndProc = SetWindowsHookEx(WH_CALLWNDPROC, hkCallWndProc, NULL, dwThreadId);
+	if (!hhkCallWndProc)
+	{
+		return ;
+	}
+
+	// Set hook on GetMessage
+	hhkGetMessage = SetWindowsHookEx(WH_GETMESSAGE, hkGetMsgProc, NULL, dwThreadId);
+	if (!hhkGetMessage)
+	{
+		return ;
+	}
+
+	// Set hook on Keyboard
+	hhkCallKeyboardMsg = SetWindowsHookEx(WH_KEYBOARD, hkCallKeyboardMsg, NULL, dwThreadId);
+	if (!hhkGetMessage)
+	{
+		return ;
+	}
+}
+
+void DetachMenuTools(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+   UnhookWindowsHookEx(hhkCallWndProc);
+   UnhookWindowsHookEx(hhkGetMessage);
+   UnhookWindowsHookEx(hhkCallKeyboardMsg);
+   FreeLibrary(hMenuTool);
 }

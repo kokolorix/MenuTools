@@ -74,6 +74,7 @@ using std::wstring;
 #define MT_TRAY_MESSAGE						WM_USER + 0x200
 
 #define WM_SHOW_WIN_POS						WM_USER + 0x220
+#define MT_MENU_OPEN_WIN_POS1				WM_USER + 0x230
 
 
 #ifdef _WIN64

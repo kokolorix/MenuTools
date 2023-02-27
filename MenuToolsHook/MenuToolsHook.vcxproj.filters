@@ -24,6 +24,9 @@
     <ClInclude Include="MenuTools.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -46,5 +49,21 @@
     <None Include="MenuToolsHook64.def">
       <Filter>Source Files</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="buttons96.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="buttons120.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="buttons144.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="MenuToolsHook.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>
