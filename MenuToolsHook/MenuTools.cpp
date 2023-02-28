@@ -410,7 +410,7 @@ BOOL MenuTools::WndProc(HWND hWnd, WPARAM wParam, LPARAM lParam)
 		int caption = GetSystemMetrics(SM_CYCAPTION);
 		POINT pt = { 0 };
 		//if(IsIconic(hWnd))
-		if (wmId == MT_MENU_OPEN_WIN_POS1)
+		if (wmId == MT_MENU_OPEN_WIN_POS1 || IsIconic(hWnd))
 		{
 			GetCursorPos(&pt);
 		}
@@ -423,16 +423,16 @@ BOOL MenuTools::WndProc(HWND hWnd, WPARAM wParam, LPARAM lParam)
 			pt = tmp;
 		}
 
-		std::thread t1([hWnd, wParam, pt]()
-			{
-				PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
-			});
-		t1.join();
+		//std::thread t1([hWnd, wParam, pt]()
+		//	{
+		//		PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
+		//	});
+		//t1.join();
 		//POINT pt = {
 		//	wr.left + ((wr.right - wr.left) / 2),
 		//	wr.top + (caption / 2)
 		//};
-		//PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
+		PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
 		return TRUE;
 	}
 	

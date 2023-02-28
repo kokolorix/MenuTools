@@ -3,6 +3,7 @@
 #include <MenuCommon/ScreenToolWnd.h>
 
 HWND GetMainWnd();
+void InstallHooks();
 
 
 HINSTANCE hInst;  // current instance
@@ -14,6 +15,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  dwReason, LPVOID lpReserved)
 	if (dwReason == DLL_PROCESS_ATTACH)
 	{
 		hInst = hModule;
+
+		InstallHooks();
+
 		HWND hWnd = GetMainWnd();
 
 		UINT wmTaskbarButtonCreated = RegisterWindowMessage(L"TaskbarButtonCreated");
@@ -83,4 +87,62 @@ WndVector GetDesktopWnds()
 	return hWnds;	//EnumDesktopWindows()
 }
 
+HHOOK hhkCallWndProc;
+HHOOK hhkGetMessage;
+HHOOK hhkCallKeyboardMsg;
 
+extern HOOKPROC hkCallWndProc;
+extern HOOKPROC hkGetMsgProc;
+extern HOOKPROC hkCallKeyboardMsg;
+
+#define MT_HOOK_PROC_CWP					"CallWndProc"
+#define MT_HOOK_PROC_GMP					"GetMsgProc"
+#define MT_HOOK_PROC_KYB					"CallKeyboardMsg"
+
+
+void InstallHooks() 
+{
+	// CallWndProc function
+	HOOKPROC hkCallWndProc = (HOOKPROC)GetProcAddress(hInst, MT_HOOK_PROC_CWP);
+	if (!hkCallWndProc)
+	{
+		return;
+	}
+
+	// GetMsgProc function
+	HOOKPROC hkGetMsgProc = (HOOKPROC)GetProcAddress(hInst, MT_HOOK_PROC_GMP);
+	if (!hkGetMsgProc)
+	{
+		return;
+	}
+
+
+	HOOKPROC hkCallKeyboardMsg = (HOOKPROC)GetProcAddress(hInst, MT_HOOK_PROC_KYB);
+	if (!hkCallKeyboardMsg)
+	{
+		return;
+	}
+
+	DWORD dwThreadId = ::GetCurrentThreadId();
+
+	// Set hook on CallWndProc
+	hhkCallWndProc = SetWindowsHookEx(WH_CALLWNDPROC, hkCallWndProc, NULL, dwThreadId);
+	if (!hhkCallWndProc)
+	{
+		return;
+	}
+
+	// Set hook on GetMessage
+	hhkGetMessage = SetWindowsHookEx(WH_GETMESSAGE, hkGetMsgProc, NULL, dwThreadId);
+	if (!hhkGetMessage)
+	{
+		return;
+	}
+
+	// Set hook on Keyboard
+	hhkCallKeyboardMsg = SetWindowsHookEx(WH_KEYBOARD, hkCallKeyboardMsg, NULL, dwThreadId);
+	if (!hhkGetMessage)
+	{
+		return;
+	}
+}

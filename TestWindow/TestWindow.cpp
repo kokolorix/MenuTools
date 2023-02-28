@@ -4,6 +4,11 @@
 #include "framework.h"
 #include "TestWindow.h" 
 #include "resource.h"
+#include <string>
+#include <format>
+#include <string_view>
+#include <Shlwapi.h>
+#pragma comment(lib, "Shlwapi.lib")
 //#include "../MenuCommon/Defines.h"
 
 #define MAX_LOADSTRING 100
@@ -123,6 +128,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
 void AttacheMenuTools(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 void DetachMenuTools(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+void AttachMenuToolsToExplorer(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 //
 //  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
@@ -157,6 +163,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 				case ID_FILE_DETACHMENUTOOLS:
 					DetachMenuTools(hWnd, message, wParam, lParam);
+					break;
+
+				case ID_FILE_ATTACH_MENUTOOLS_TO_EXPLORER:
+					AttachMenuToolsToExplorer(hWnd, message, wParam, lParam);
 					break;
 
             default:
@@ -273,3 +283,101 @@ void DetachMenuTools(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
    UnhookWindowsHookEx(hhkCallKeyboardMsg);
    FreeLibrary(hMenuTool);
 }
+
+
+template <typename... Args>
+std::wstring dyna_print(std::wstring_view rt_fmt_str, Args&&... args) {
+	return std::vformat(rt_fmt_str, std::make_wformat_args(args...));
+}
+
+inline void ShowLastError(const std::wstring fmtStr)
+{
+	LPWSTR errorText = NULL;
+	FormatMessage(
+		FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		GetLastError(),
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPWSTR)&errorText,
+		0,
+		NULL);
+	const std::wstring errorStr = errorText;
+
+	std::wstring msg = dyna_print(fmtStr, errorStr);
+	MessageBox(NULL, msg.c_str(), L"Error", MB_ICONERROR | MB_OK);
+	LocalFree(errorText);
+}
+
+void AttachMenuToolsToExplorer(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	// Find the window handle for the desktop shell
+	HWND hShellWnd = FindWindow(_T("Progman"), NULL);
+	if (hShellWnd == NULL)
+		return ShowLastError(L"Failed to find desktop shell window, error {}");
+
+	// Get the process ID of the desktop shell window
+	DWORD shellPid = 0;
+	GetWindowThreadProcessId(hShellWnd, &shellPid);
+	if (shellPid == 0)
+		return ShowLastError(L"Failed to get process ID for desktop shell, error {}");
+
+	DWORD targetPid = shellPid;
+
+	// Open the target process with read/write access
+	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, targetPid);
+	if (hProcess == NULL)
+		return ShowLastError(L"Failed to open process, error {}");
+
+	// Get the address of the LoadLibrary function in the kernel32.dll module
+	HMODULE hKernel32 = GetModuleHandle(_T("kernel32.dll"));
+	if (hKernel32 == NULL)
+		return ShowLastError(L"Failed to obtain kernel32.dll handle, error {}");
+
+	FARPROC pLoadLibrary = GetProcAddress(hKernel32, "LoadLibraryW");
+	if (pLoadLibrary == nullptr)
+		return ShowLastError(L"Failed to obtain LoadLibraryW adress, error {}");
+
+	WCHAR path[MAX_PATH];
+	DWORD pathLength = GetModuleFileName(NULL, path, MAX_PATH);
+	PathRemoveFileSpec(path);
+	PathAppend(path, L"MenuToolsHook64.dll");
+
+
+	// Allocate memory in the target process to hold the path to the DLL
+	SIZE_T pathSize = (_tcslen(path) * sizeof(_TCHAR));
+	LPVOID remotePath = VirtualAllocEx(hProcess, NULL, pathSize, MEM_COMMIT, PAGE_READWRITE);
+	if (remotePath == NULL)
+	{
+		ShowLastError(L"Failed to allocate memory in process, error {}");
+		CloseHandle(hProcess);
+		return;
+	}
+
+	// Write the path to the DLL to the allocated memory in the target process
+	if (!WriteProcessMemory(hProcess, remotePath, path, pathSize, NULL))
+	{
+		ShowLastError(L"Failed to write to process memory, error {}");
+		VirtualFreeEx(hProcess, remotePath, 0, MEM_RELEASE);
+		CloseHandle(hProcess);
+		return;
+	}
+
+	// Create a remote thread in the target process to call LoadLibrary with the path to the DLL
+	HANDLE hThread = CreateRemoteThread(hProcess, NULL, 0, (LPTHREAD_START_ROUTINE)pLoadLibrary, remotePath, 0, NULL);
+	if (hThread == NULL)
+	{
+		ShowLastError(L"Failed to create remote thread, error {}");
+		VirtualFreeEx(hProcess, remotePath, 0, MEM_RELEASE);
+		CloseHandle(hProcess);
+		return;
+	}
+
+	// Wait for the remote thread to finish executing
+	WaitForSingleObject(hThread, INFINITE);
+
+	// Free the memory and close the handles
+	VirtualFreeEx(hProcess, remotePath, 0, MEM_RELEASE);
+	CloseHandle(hThread);
+	CloseHandle(hProcess);
+}
+

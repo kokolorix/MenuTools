@@ -618,10 +618,10 @@ ScreenToolWnd::Impl::~Impl()
 		//SendMessage(_hWnd, WM_CLOSE, 0, 0);
 		if (IsWindow(_hWnd))
 		{
-			PostMessage(_hWnd, WM_DESTROY, 0, 0);
-			PostMessage(_hWnd, WM_NCDESTROY, 0, 0);
+			DestroyWindow(_hWnd);
+			//PostMessage(_hWnd, WM_DESTROY, 0, 0);
+			//PostMessage(_hWnd, WM_NCDESTROY, 0, 0);
 		}
-			//DestroyWindow(_hWnd);
 	}
 }
 
