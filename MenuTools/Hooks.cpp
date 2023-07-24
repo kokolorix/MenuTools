@@ -72,7 +72,7 @@ BOOL Hooks::Install()
 BOOL Hooks::Uninstall()
 {
 	// Send a especial message to remove menus
-	SendMessage(HWND_BROADCAST, MT_HOOK_MSG_QUIT, NULL, NULL);
+	PostMessage(HWND_BROADCAST, MT_HOOK_MSG_QUIT, NULL, NULL);
 
 	BOOL bRetn = TRUE;
 

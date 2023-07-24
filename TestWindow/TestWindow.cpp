@@ -2,12 +2,15 @@
 //
 
 #include "framework.h"
+#include "winuser.h"
 #include "TestWindow.h" 
 #include "resource.h"
 #include <string>
 #include <format>
 #include <string_view>
 #include <Shlwapi.h>
+#include "../MenuTools/Hooks.h"
+#include "MenuCommon/Defines.h"
 #pragma comment(lib, "Shlwapi.lib")
 //#include "../MenuCommon/Defines.h"
 
@@ -24,44 +27,49 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
+Hooks hooks;
+
+
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
-                     _In_opt_ HINSTANCE hPrevInstance,
-                     _In_ LPWSTR    lpCmdLine,
-                     _In_ int       nCmdShow)
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPWSTR    lpCmdLine,
+	_In_ int       nCmdShow)
 {
-    UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
+	UNREFERENCED_PARAMETER(hPrevInstance);
+	UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // TODO: Place code here.
+	// TODO: Place code here.
 
-    // Initialize global strings
-    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_TESTWINDOW, szWindowClass, MAX_LOADSTRING);
-    MyRegisterClass(hInstance);
+	// Initialize global strings
+	LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+	LoadStringW(hInstance, IDC_TESTWINDOW, szWindowClass, MAX_LOADSTRING);
+	MyRegisterClass(hInstance);
 
-    // Perform application initialization:
-    if (!InitInstance (hInstance, nCmdShow))
-    {
-        return FALSE;
-    }
+	// Perform application initialization:
+	if (!InitInstance(hInstance, nCmdShow))
+	{
+		return FALSE;
+	}
 
-    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_TESTWINDOW));
+	HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_TESTWINDOW));
 
 
 
-    MSG msg;
+	MSG msg;
 
-    // Main message loop:
-    while (GetMessage(&msg, nullptr, 0, 0))
-    {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-    }
+	// Main message loop:
+	while (GetMessage(&msg, nullptr, 0, 0))
+	{
+		if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+	}
 
-    return (int) msg.wParam;
+	//hooks.Uninstall();
+
+	return (int)msg.wParam;
 }
 
 
@@ -73,23 +81,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 //
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
-    WNDCLASSEXW wcex;
+	WNDCLASSEXW wcex;
 
-    wcex.cbSize = sizeof(WNDCLASSEX);
+	wcex.cbSize = sizeof(WNDCLASSEX);
 
-    wcex.style          = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc    = WndProc;
-    wcex.cbClsExtra     = 0;
-    wcex.cbWndExtra     = 0;
-    wcex.hInstance      = hInstance;
-    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_TESTWINDOW));
-    wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_TESTWINDOW);
-    wcex.lpszClassName  = szWindowClass;
-    wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.lpfnWndProc = WndProc;
+	wcex.cbClsExtra = 0;
+	wcex.cbWndExtra = 0;
+	wcex.hInstance = hInstance;
+	wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_TESTWINDOW));
+	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_TESTWINDOW);
+	wcex.lpszClassName = szWindowClass;
+	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
-    return RegisterClassExW(&wcex);
+	return RegisterClassExW(&wcex);
 }
 
 //
@@ -104,26 +112,26 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   hInst = hInstance; // Store instance handle in our global variable
+	hInst = hInstance; // Store instance handle in our global variable
 
 	RECT wa = { 0 };
 	SystemParametersInfo(SPI_GETWORKAREA, 0, &wa, 0);
 	int waw = wa.right - wa.left, wah = wa.bottom - wa.top;
 	int w = 600, h = 400;
 
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+	HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
 		(waw - w) / 2, (wah - h) / 2, w, h, nullptr, nullptr, hInstance, nullptr);
-      //CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+	//CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
-   if (!hWnd)
-   {
-      return FALSE;
-   }
+	if (!hWnd)
+	{
+		return FALSE;
+	}
 
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
+	ShowWindow(hWnd, nCmdShow);
+	UpdateWindow(hWnd);
 
-   return TRUE;
+	return TRUE;
 }
 
 void AttacheMenuTools(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -139,76 +147,170 @@ void AttachMenuToolsToExplorer(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 //  WM_PAINT    - Paint the main window
 //  WM_DESTROY  - post a quit message and return
 //
-//
+//	
+
+bool targetingWindow = false;
+HWND targetingCurrentWindow = NULL;
+void AttachMenuToolToProcess(DWORD targetPid);
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    switch (message)
-    {
-    case WM_COMMAND:
-        {
-            int wmId = LOWORD(wParam);
-            // Parse the menu selections:
-            switch (wmId)
-            {
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-            case IDM_EXIT:
-                DestroyWindow(hWnd);
-                break;
+	switch (message)
+	{
+	case WM_COMMAND:
+	{
+		int wmId = LOWORD(wParam);
+		// Parse the menu selections:
+		switch (wmId)
+		{
+		case IDM_ABOUT:
+			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+			break;
+		case IDM_EXIT:
+			DestroyWindow(hWnd);
+			break;
 
-            case ID_FILE_ATTACHMENUTOOLS:
-               AttacheMenuTools(hWnd, message, wParam, lParam);
-               break;
+		case ID_FILE_ATTACHMENUTOOLS:
+			AttacheMenuTools(hWnd, message, wParam, lParam);
+			break;
 
-				case ID_FILE_DETACHMENUTOOLS:
-					DetachMenuTools(hWnd, message, wParam, lParam);
-					break;
+		case ID_FILE_DETACHMENUTOOLS:
+			DetachMenuTools(hWnd, message, wParam, lParam);
+			break;
 
-				case ID_FILE_ATTACH_MENUTOOLS_TO_EXPLORER:
-					AttachMenuToolsToExplorer(hWnd, message, wParam, lParam);
-					break;
+		case ID_FILE_ATTACH_MENUTOOLS_TO_EXPLORER:
+			AttachMenuToolsToExplorer(hWnd, message, wParam, lParam);
+			break;
 
-            default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
-            }
-        }
-        break;
-    case WM_PAINT:
-        {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: Add any drawing code that uses hdc here...
-            EndPaint(hWnd, &ps);
-        }
-        break;
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
-    default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
-    }
-    return 0;
+		case ID_FILE_ATTACH_TO_WINDOW:
+		{
+			SetCapture(hWnd);
+			// Set the cursor.
+			SetSystemCursor(LoadCursor(NULL, IDC_ARROW), OCR_CROSS);
+			//HCURSOR hCursor = LoadCursor(NULL, IDC_CROSS);
+			//SetSystemCursor(hCursor, 32512);
+			//SetCursor(LoadCursor(NULL, IDC_CROSS));
+			// Send the window to the bottom.
+			SetWindowPos(hWnd, HWND_BOTTOM, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+
+			targetingWindow = true;
+			targetingCurrentWindow = NULL;
+
+			SendMessage(hWnd, WM_MOUSEMOVE, 0, 0);
+		}
+		break;
+
+		case ID_INSTALL_HOOKS:
+			hooks.Install();
+			break;
+
+		case ID_UNINSTALL_HOOKS:
+			hooks.Uninstall();
+			break;
+
+		}
+	}
+	goto DefaultWndProc;
+
+	case WM_MOUSEMOVE:
+	{
+		if (targetingWindow)
+		{
+			POINT cursorPos;
+			HWND windowUnderMouse;
+
+			//SetCursor(LoadCursor(NULL, IDC_CROSS));
+			GetCursorPos(&cursorPos);
+			windowUnderMouse = WindowFromPoint(cursorPos);
+			targetingCurrentWindow = windowUnderMouse;
+			ULONG processId = 0;
+			ULONG threadId = GetWindowThreadProcessId(targetingCurrentWindow, &processId);
+			threadId = threadId;
+			FlashWindow(windowUnderMouse, true);
+			//OutputDebugString(L"Holdrio");
+		}
+	}
+	goto DefaultWndProc;
+	//break;
+
+	case WM_LBUTTONUP:
+	{
+		if (targetingWindow && targetingCurrentWindow != hWnd)
+		{
+			// Reset the original cursor.
+			SetSystemCursor(LoadCursor(NULL, IDC_CROSS), OCR_NORMAL);
+			//HCURSOR hCursor = LoadCursor(NULL, IDC_ARROW);
+			//SetSystemCursor(hCursor, 32512);
+			//SetCursor(LoadCursor(NULL, IDC_ARROW));
+
+			// Bring the window back to the top, and preserve the Always on Top setting.
+			SetWindowPos(targetingCurrentWindow, HWND_TOP, 0, 0, 0, 0, SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE);
+
+			ULONG processId = 0;
+			ULONG threadId = GetWindowThreadProcessId(targetingCurrentWindow, &processId);
+
+			targetingWindow = false;
+			targetingCurrentWindow = NULL;
+			ReleaseCapture();
+
+			AttachMenuToolToProcess(processId);
+		}
+	}
+	goto DefaultWndProc;
+	//break;
+	case WM_KEYDOWN:
+	{
+		if (wParam == VK_ESCAPE)
+		{
+			SetSystemCursor(LoadCursor(NULL, IDC_CROSS), OCR_NORMAL);
+			ReleaseCapture();
+			targetingWindow = false;
+			targetingCurrentWindow = NULL;
+		}
+	}
+	goto DefaultWndProc;
+
+	case WM_PAINT:
+	{
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint(hWnd, &ps);
+		// TODO: Add any drawing code that uses hdc here...
+		EndPaint(hWnd, &ps);
+	}
+	goto DefaultWndProc;
+	//break;
+
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+
+	default:
+		goto DefaultWndProc;
+	}
+
+DefaultWndProc:
+	return DefWindowProc(hWnd, message, wParam, lParam);
+	//return 0;
 }
 
 // Message handler for about box.
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
+	UNREFERENCED_PARAMETER(lParam);
+	switch (message)
+	{
+	case WM_INITDIALOG:
+		return (INT_PTR)TRUE;
 
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        break;
-    }
-    return (INT_PTR)FALSE;
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+		{
+			EndDialog(hDlg, LOWORD(wParam));
+			return (INT_PTR)TRUE;
+		}
+		break;
+	}
+	return (INT_PTR)FALSE;
 }
 
 HMODULE hMenuTool = NULL;
@@ -227,9 +329,9 @@ HOOKPROC hkCallKeyboardMsg;
 
 void AttacheMenuTools(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-   hMenuTool = LoadLibrary(L"MenuToolsHook64.dll");
-   if (hMenuTool == NULL)
-      return;
+	hMenuTool = LoadLibrary(L"MenuToolsHook64.dll");
+	//if (hMenuTool == NULL)
+		return;
 
 	// CallWndProc function
 	HOOKPROC hkCallWndProc = (HOOKPROC)GetProcAddress(hMenuTool, MT_HOOK_PROC_CWP);
@@ -258,30 +360,29 @@ void AttacheMenuTools(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	hhkCallWndProc = SetWindowsHookEx(WH_CALLWNDPROC, hkCallWndProc, NULL, dwThreadId);
 	if (!hhkCallWndProc)
 	{
-		return ;
+		return;
 	}
 
 	// Set hook on GetMessage
 	hhkGetMessage = SetWindowsHookEx(WH_GETMESSAGE, hkGetMsgProc, NULL, dwThreadId);
 	if (!hhkGetMessage)
 	{
-		return ;
+		return;
 	}
 
 	// Set hook on Keyboard
 	hhkCallKeyboardMsg = SetWindowsHookEx(WH_KEYBOARD, hkCallKeyboardMsg, NULL, dwThreadId);
 	if (!hhkGetMessage)
 	{
-		return ;
+		return;
 	}
 }
 
 void DetachMenuTools(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-   UnhookWindowsHookEx(hhkCallWndProc);
-   UnhookWindowsHookEx(hhkGetMessage);
-   UnhookWindowsHookEx(hhkCallKeyboardMsg);
-   FreeLibrary(hMenuTool);
+	auto hMenuTool = GetModuleHandle(MT_DLL_NAME64);
+	if(hMenuTool != 0)
+		FreeLibrary(hMenuTool);
 }
 
 
@@ -308,21 +409,8 @@ inline void ShowLastError(const std::wstring fmtStr)
 	LocalFree(errorText);
 }
 
-void AttachMenuToolsToExplorer(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+void AttachMenuToolToProcess(DWORD targetPid)
 {
-	// Find the window handle for the desktop shell
-	HWND hShellWnd = FindWindow(_T("Progman"), NULL);
-	if (hShellWnd == NULL)
-		return ShowLastError(L"Failed to find desktop shell window, error {}");
-
-	// Get the process ID of the desktop shell window
-	DWORD shellPid = 0;
-	GetWindowThreadProcessId(hShellWnd, &shellPid);
-	if (shellPid == 0)
-		return ShowLastError(L"Failed to get process ID for desktop shell, error {}");
-
-	DWORD targetPid = shellPid;
-
 	// Open the target process with read/write access
 	HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, targetPid);
 	if (hProcess == NULL)
@@ -379,5 +467,26 @@ void AttachMenuToolsToExplorer(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 	VirtualFreeEx(hProcess, remotePath, 0, MEM_RELEASE);
 	CloseHandle(hThread);
 	CloseHandle(hProcess);
+}
+
+void AttachMenuToolsToExplorer(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	//hooks.Install();
+
+		// Find the window handle for the desktop shell
+	HWND hShellWnd = FindWindow(_T("Progman"), NULL);
+	if (hShellWnd == NULL)
+		return ShowLastError(L"Failed to find desktop shell window, error {}");
+
+	// Get the process ID of the desktop shell window
+	DWORD shellPid = 0;
+	GetWindowThreadProcessId(hShellWnd, &shellPid);
+	if (shellPid == 0)
+		return ShowLastError(L"Failed to get process ID for desktop shell, error {}");
+
+	DWORD targetPid = shellPid;
+
+	AttachMenuToolToProcess(targetPid);
+	return;
 }
 

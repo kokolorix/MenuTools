@@ -36,7 +36,7 @@ BOOL MenuTools::Install(HWND hWnd)
 
 	if (!IsMenuItem(hMenuSystem, MT_MENU_INC_WIN_SIZE))
 	{
-		//InsertMenu(hMenuSystem, SC_CLOSE, MF_SEPARATOR, 0, NULL);
+		//InsertMenu(hMenuSystem, SC_CLOSE, MF_SEPARATOR, MT_MENU_SEPARATOR1 NULL);
 		InsertMenu(hMenuSystem, SC_CLOSE, MF_BYCOMMAND | MF_STRING, MT_MENU_INC_WIN_SIZE, _T("&Inc Size of Window"));
 	}
 
@@ -48,20 +48,20 @@ BOOL MenuTools::Install(HWND hWnd)
 
 	if (!IsMenuItem(hMenuSystem, MT_MENU_OPEN_WIN_POS))
 	{
-		InsertMenu(hMenuSystem, SC_CLOSE, MF_SEPARATOR, 0, NULL);
+		InsertMenu(hMenuSystem, SC_CLOSE, MF_SEPARATOR, MT_MENU_SEPARATOR2, NULL);
 		InsertMenu(hMenuSystem, SC_CLOSE, MF_BYCOMMAND | MF_STRING, MT_MENU_OPEN_WIN_POS, _T("Open P&ositioning-Window"));
 	}
 
 	if (!IsMenuItem(hMenuSystem, MT_MENU_SHOW_CFG_DIR))
 	{
-		InsertMenu(hMenuSystem, SC_CLOSE, MF_SEPARATOR, 0, NULL);
+		InsertMenu(hMenuSystem, SC_CLOSE, MF_SEPARATOR, MT_MENU_SEPARATOR3, NULL);
 		InsertMenu(hMenuSystem, SC_CLOSE, MF_BYCOMMAND | MF_STRING, MT_MENU_SHOW_CFG_DIR, _T("Open &Config-Folder"));
 	}
 
 	if (!IsMenuItem(hMenuSystem, MT_MENU_SHOW_WIN_SIZE))
 	{
 		InsertMenu(hMenuSystem, SC_CLOSE, MF_BYCOMMAND | MF_STRING, MT_MENU_SHOW_WIN_SIZE, _T("&Show Size of Window"));
-		InsertMenu(hMenuSystem, SC_CLOSE, MF_SEPARATOR, 0, NULL);
+		InsertMenu(hMenuSystem, SC_CLOSE, MF_SEPARATOR, MT_MENU_SEPARATOR4, NULL);
 	}
 
 	if (!IsMenuItem(hMenuSystem, MT_MENU_PRIORITY))
@@ -153,6 +153,22 @@ BOOL MenuTools::Uninstall(HWND hWnd)
 		bSuccess = FALSE;
 	}
 	if (!DeleteMenu(hMenuSystem, MT_MENU_SEPARATOR, MF_BYCOMMAND))
+	{
+		bSuccess = FALSE;
+	}
+	if (!DeleteMenu(hMenuSystem, MT_MENU_SEPARATOR1, MF_BYCOMMAND))
+	{
+		bSuccess = FALSE;
+	}
+	if (!DeleteMenu(hMenuSystem, MT_MENU_SEPARATOR2, MF_BYCOMMAND))
+	{
+		bSuccess = FALSE;
+	}
+	if (!DeleteMenu(hMenuSystem, MT_MENU_SEPARATOR3, MF_BYCOMMAND))
+	{
+		bSuccess = FALSE;
+	}
+	if (!DeleteMenu(hMenuSystem, MT_MENU_SEPARATOR4, MF_BYCOMMAND))
 	{
 		bSuccess = FALSE;
 	}
@@ -386,30 +402,9 @@ BOOL MenuTools::WndProc(HWND hWnd, WPARAM wParam, LPARAM lParam)
 	case MT_MENU_OPEN_WIN_POS1:
 	{
 		RECT wr;
-		//if(IsIconic(hWnd))
-		//if(wmId == MT_MENU_OPEN_WIN_POS1)
-		//{
-		//	HWND taskbarHandle = FindWindow(L"Shell_TrayWnd", NULL);
-		//	HWND startButtonHandle = FindWindowEx(taskbarHandle, NULL, L"Button", NULL);
-		//	GetWindowRect(startButtonHandle, &wr);
-		//	int taskbarWidth = wr.right - wr.left;
-		//	int taskbarHeight = wr.bottom - wr.top;
-
-			//HWND buttonHandle = (HWND)wParam;
-			//RECT wr;
-			//GetWindowRect(buttonHandle, &wr);
-			//int x = LOWORD(lParam);
-			//int y = HIWORD(lParam);
-			//int offsetX = x - wr.left;
-			//int offsetY = y - wr.top;
-		//}
-		//else
-		//{
-		//}
 		GetWindowRect(hWnd, &wr);
 		int caption = GetSystemMetrics(SM_CYCAPTION);
 		POINT pt = { 0 };
-		//if(IsIconic(hWnd))
 		if (wmId == MT_MENU_OPEN_WIN_POS1 || IsIconic(hWnd))
 		{
 			GetCursorPos(&pt);
@@ -423,16 +418,7 @@ BOOL MenuTools::WndProc(HWND hWnd, WPARAM wParam, LPARAM lParam)
 			pt = tmp;
 		}
 
-		//std::thread t1([hWnd, wParam, pt]()
-		//	{
-		//		PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
-		//	});
-		//t1.join();
-		//POINT pt = {
-		//	wr.left + ((wr.right - wr.left) / 2),
-		//	wr.top + (caption / 2)
-		//};
-		PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
+		ScreenToolWnd::pWnd = ScreenToolWnd::ShowWindow(hInst, hWnd, WM_LBUTTONUP, wParam, MAKELPARAM(pt.x, pt.y));
 		return TRUE;
 	}
 	
@@ -649,48 +635,51 @@ HRESULT CreateThumbnailToolbar(HWND hWnd)
 			//auto hMenuTool = GetModuleHandle(L"MenuToolsHook64.dll");
 
 			HICON hWindows = LoadIcon(hInst, MAKEINTRESOURCE(IDI_WINDOWS));
+			HICON hWinInc = LoadIcon(hInst, MAKEINTRESOURCE(IDI_WININC));
+			HICON hWinDec = LoadIcon(hInst, MAKEINTRESOURCE(IDI_WINDEC));
 
-			HIMAGELIST himl = ImageList_LoadImage(hInst, bitmaps[iButtons].pbmp,
+			HIMAGELIST hImageList = ImageList_LoadImage(hInst, bitmaps[iButtons].pbmp,
 				bitmaps[iButtons].cx, 0, RGB(255, 0, 255), IMAGE_BITMAP, LR_CREATEDIBSECTION);
-			if (himl)
+
+			if (hWindows && hWinInc && hWinDec)
 			{
-				hr = pTaskbarList->ThumbBarSetImageList(hWnd, himl);
+				hr = pTaskbarList->ThumbBarSetImageList(hWnd, hImageList);
 				if (SUCCEEDED(hr))
 				{
-					THUMBBUTTON buttons[4] = {};
+					THUMBBUTTON buttons[3] = {};
 
 					// First button
-					buttons[0].dwMask = THB_BITMAP | THB_TOOLTIP | THB_FLAGS;
-					buttons[0].dwFlags = THBF_ENABLED |  THBF_DISMISSONCLICK;
+					buttons[0].dwMask = THB_ICON | THB_TOOLTIP | THB_FLAGS;
+					buttons[0].dwFlags = THBF_ENABLED ;
 					buttons[0].iId = MT_MENU_INC_WIN_SIZE;
-					buttons[0].iBitmap = 0;
-					StringCchCopy(buttons[0].szTip, ARRAYSIZE(buttons[0].szTip), L"Button 1");
+					buttons[0].hIcon = hWinInc;
+					StringCchCopy(buttons[0].szTip, ARRAYSIZE(buttons[0].szTip), L"Increment Window Size");
 
 					// Second button
-					buttons[1].dwMask = THB_BITMAP | THB_TOOLTIP | THB_FLAGS;
-					buttons[1].dwFlags = THBF_ENABLED |  THBF_DISMISSONCLICK;
+					buttons[1].dwMask = THB_ICON | THB_TOOLTIP | THB_FLAGS;
+					buttons[1].dwFlags = THBF_ENABLED ;
 					buttons[1].iId = MT_MENU_DEC_WIN_SIZE;
-					buttons[1].iBitmap = 1;
-					StringCchCopy(buttons[1].szTip, ARRAYSIZE(buttons[1].szTip), L"Button 2");
+					buttons[1].hIcon = hWinDec;
+					StringCchCopy(buttons[1].szTip, ARRAYSIZE(buttons[1].szTip), L"Decrement Window Size");
 
 					// Third button
-					buttons[2].dwMask = THB_BITMAP | THB_TOOLTIP | THB_FLAGS;
-					buttons[2].dwFlags = THBF_ENABLED | THBF_HIDDEN | THBF_DISMISSONCLICK;
-					buttons[2].iId = IDTB_BUTTON3;
-					buttons[2].iBitmap = 2;
-					StringCchCopy(buttons[2].szTip, ARRAYSIZE(buttons[2].szTip), L"Button 3");
-
-					// Third button
-					buttons[3].dwMask = THB_ICON | THB_TOOLTIP | THB_FLAGS;
-					buttons[3].dwFlags = THBF_ENABLED | THBF_DISMISSONCLICK;
-					buttons[3].iId = MT_MENU_OPEN_WIN_POS1;
-					buttons[3].hIcon = hWindows;
+					buttons[2].dwMask = THB_ICON | THB_TOOLTIP | THB_FLAGS;
+					buttons[2].dwFlags = THBF_ENABLED | THBF_DISMISSONCLICK;
+					buttons[2].iId = MT_MENU_OPEN_WIN_POS1;
+					buttons[2].hIcon = hWindows;
 					StringCchCopy(buttons[3].szTip, ARRAYSIZE(buttons[3].szTip), L"Open Positioning Window");
+
+					//// Third button
+					//buttons[2].dwMask = THB_BITMAP | THB_TOOLTIP | THB_FLAGS;
+					//buttons[2].dwFlags = THBF_ENABLED | THBF_HIDDEN | THBF_DISMISSONCLICK;
+					//buttons[2].iId = IDTB_BUTTON3;
+					//buttons[2].iBitmap = 2;
+					//StringCchCopy(buttons[2].szTip, ARRAYSIZE(buttons[2].szTip), L"Button 3");
 
 					// Set the buttons to be the thumbnail toolbar
 					hr = pTaskbarList->ThumbBarAddButtons(hWnd, ARRAYSIZE(buttons), buttons);
 				}
-				ImageList_Destroy(himl);
+				ImageList_Destroy(hImageList);
 			}
 		}
 

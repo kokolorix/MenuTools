@@ -24,29 +24,17 @@
     <ClInclude Include="Resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="MenuTools.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Startup.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Hooks.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
+    <ClInclude Include="MenuTools.h" />
+    <ClInclude Include="Hooks.h" />
+    <ClInclude Include="Startup.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="MenuTools.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Startup.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Hooks.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
+    <ClCompile Include="Hooks.cpp" />
+    <ClCompile Include="Startup.cpp" />
+    <ClCompile Include="MenuTools.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MenuTools.rc">

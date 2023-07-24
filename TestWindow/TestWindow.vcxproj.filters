@@ -24,14 +24,18 @@
     <ClInclude Include="Resource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\MenuTools\Hooks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="TestWindow.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="TestWindow.cpp">
+    <ClCompile Include="..\MenuTools\Hooks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="TestWindow.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="TestWindow.rc">

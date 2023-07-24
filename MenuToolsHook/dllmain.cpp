@@ -1,12 +1,16 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include "stdafx.h"
 #include <MenuCommon/ScreenToolWnd.h>
+#include "MenuTools.h"
 
 HWND GetMainWnd();
 void InstallHooks();
+void UninstallHooks();
 
 
 HINSTANCE hInst;  // current instance
+DWORD dwMainThreadId = 0;
+HWND hMainWnd = 0;
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  dwReason, LPVOID lpReserved)
 {
@@ -16,15 +20,18 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  dwReason, LPVOID lpReserved)
 	{
 		hInst = hModule;
 
+
+		hMainWnd = GetMainWnd();
+
 		InstallHooks();
 
-		HWND hWnd = GetMainWnd();
-
 		UINT wmTaskbarButtonCreated = RegisterWindowMessage(L"TaskbarButtonCreated");
-		PostMessage(hWnd, wmTaskbarButtonCreated, 0, 0);
+		PostMessage(hMainWnd, wmTaskbarButtonCreated, 0, 0);
 	}
 	else if (dwReason == DLL_PROCESS_DETACH)
 	{
+		UninstallHooks();
+		MenuTools::Uninstall(hMainWnd);
 		#include <MenuCommon/ScreenToolWnd.h>
 		ScreenToolWnd::pWnd.reset();
 		hInst = NULL;
@@ -45,7 +52,7 @@ HWND GetMainWnd()
 
 	for (HWND hWnd : wnds) {
 		DWORD wndProcessId = NULL;
-		GetWindowThreadProcessId(hWnd, &wndProcessId);
+		dwMainThreadId = GetWindowThreadProcessId(hWnd, &wndProcessId);
 		if (processId == wndProcessId)
 		{
 			HWND hMainWnd = GetAncestor(hWnd, GA_ROOT);
@@ -54,11 +61,6 @@ HWND GetMainWnd()
 	}
 
 	return NULL;
-
-	//DWORD (
-	//	[in]            HWND    hWnd,
-	//	[out, optional] LPDWORD lpdwProcessId
-	//);
 }
 
 BOOL CALLBACK EnumWindowsProc(HWND   hWnd, LPARAM lParam)
@@ -102,22 +104,28 @@ extern HOOKPROC hkCallKeyboardMsg;
 
 void InstallHooks() 
 {
+	HMODULE hMenuTool = GetModuleHandle(MT_DLL_NAME64);
+	if(hMenuTool == 0)
+		hMenuTool = LoadLibrary(MT_DLL_NAME64);
+	if (hMenuTool == NULL)
+		return;
+
 	// CallWndProc function
-	HOOKPROC hkCallWndProc = (HOOKPROC)GetProcAddress(hInst, MT_HOOK_PROC_CWP);
+	HOOKPROC hkCallWndProc = (HOOKPROC)GetProcAddress(hMenuTool, MT_HOOK_PROC_CWP);
 	if (!hkCallWndProc)
 	{
 		return;
 	}
 
 	// GetMsgProc function
-	HOOKPROC hkGetMsgProc = (HOOKPROC)GetProcAddress(hInst, MT_HOOK_PROC_GMP);
+	HOOKPROC hkGetMsgProc = (HOOKPROC)GetProcAddress(hMenuTool, MT_HOOK_PROC_GMP);
 	if (!hkGetMsgProc)
 	{
 		return;
 	}
 
 
-	HOOKPROC hkCallKeyboardMsg = (HOOKPROC)GetProcAddress(hInst, MT_HOOK_PROC_KYB);
+	HOOKPROC hkCallKeyboardMsg = (HOOKPROC)GetProcAddress(hMenuTool, MT_HOOK_PROC_KYB);
 	if (!hkCallKeyboardMsg)
 	{
 		return;
@@ -126,23 +134,30 @@ void InstallHooks()
 	DWORD dwThreadId = ::GetCurrentThreadId();
 
 	// Set hook on CallWndProc
-	hhkCallWndProc = SetWindowsHookEx(WH_CALLWNDPROC, hkCallWndProc, NULL, dwThreadId);
+	hhkCallWndProc = SetWindowsHookEx(WH_CALLWNDPROC, hkCallWndProc, NULL, dwMainThreadId);
 	if (!hhkCallWndProc)
 	{
 		return;
 	}
 
 	// Set hook on GetMessage
-	hhkGetMessage = SetWindowsHookEx(WH_GETMESSAGE, hkGetMsgProc, NULL, dwThreadId);
+	hhkGetMessage = SetWindowsHookEx(WH_GETMESSAGE, hkGetMsgProc, NULL, dwMainThreadId);
 	if (!hhkGetMessage)
 	{
 		return;
 	}
 
 	// Set hook on Keyboard
-	hhkCallKeyboardMsg = SetWindowsHookEx(WH_KEYBOARD, hkCallKeyboardMsg, NULL, dwThreadId);
+	hhkCallKeyboardMsg = SetWindowsHookEx(WH_KEYBOARD, hkCallKeyboardMsg, NULL, dwMainThreadId);
 	if (!hhkGetMessage)
 	{
 		return;
 	}
+}
+
+void UninstallHooks()
+{
+	UnhookWindowsHookEx(hhkCallWndProc);
+	UnhookWindowsHookEx(hhkGetMessage);
+	UnhookWindowsHookEx(hhkCallKeyboardMsg);
 }

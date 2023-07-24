@@ -40,9 +40,10 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	if (GLOBAL_DEACTIVATED)
 		return TRUE;
 
-	//static const UINT_PTR TIMER_ID = 13578;
+	static const UINT_PTR TIMER_ID = 13578;
 
-	//static UINT_PTR timer = NULL;
+	static UINT_PTR timerId = NULL;
+	static POINT lastButtonDownPt = { 0, 0 };
 	//if(!timer)
 	//	timer = SetTimer(hWnd, TIMER_ID, 300, (TIMERPROC)NULL);
 	//if (
@@ -53,25 +54,61 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 	switch (message)
 	{
-	//case WM_TIMER:
-	//{
-	//	if (wParam == TIMER_ID) 
-	//	{
-	//		if (HIBYTE(GetAsyncKeyState(VK_LSHIFT)) && HIBYTE(GetAsyncKeyState(VK_LCONTROL)) && HIBYTE(GetAsyncKeyState(0x41)))
-	//		{
-	//			log_debug(L"Thats i!: {}", message);
-	//			RECT wr;
-	//			GetWindowRect(hWnd, &wr);
-	//			int caption = GetSystemMetrics(SM_CYCAPTION);
-	//			POINT pt = {
-	//				wr.left + ((wr.right - wr.left) / 2),
-	//				wr.top + (caption / 2)
-	//			};
-	//			PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
-	//		}
-	//		return TRUE;
-	//	}
-	//	break;
+	case WM_TIMER:
+	{
+		if (wParam == TIMER_ID)
+		{
+			KillTimer(hWnd, timerId);
+			if (!HIBYTE(GetAsyncKeyState(VK_LBUTTON))) {
+				POINT lbd = lastButtonDownPt;
+				POINT pt;
+				GetCursorPos(&pt);
+				const LONG XTOL = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
+				const LONG YTOL = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
+				RECT tolerance = { lbd.x - XTOL, lbd.y - YTOL, lbd.x + XTOL, lbd.y + YTOL };
+				log_debug(L"LButton is up: {}, {}", pt.x, pt.y);
+
+				if (PtInRect(&tolerance, pt))
+				{
+					if (HIBYTE(GetAsyncKeyState(VK_CONTROL)) || HIBYTE(GetAsyncKeyState(VK_SHIFT)))
+					{
+						LONG diff = HIBYTE(GetAsyncKeyState(VK_CONTROL)) ? 10 : -10;
+						InflateWnd(diff, hWnd);
+					}
+					else
+					{
+						log_debug(L"ScreenToolWnd::pWnd: {}", (void*)ScreenToolWnd::pWnd.get());
+						{
+							//HWND hActive = ::GetForegroundWindow();
+							if (!dblClick && !activated)
+							{
+								PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
+							}
+							else
+							{
+								activated = false;
+							}
+						}
+					}
+
+				}
+
+			}
+			//if (HIBYTE(GetAsyncKeyState(VK_LSHIFT)) && HIBYTE(GetAsyncKeyState(VK_LCONTROL)) && HIBYTE(GetAsyncKeyState(0x41)))
+			//{
+			//	log_debug(L"Thats i!: {}", message);
+			//	RECT wr;
+			//	GetWindowRect(hWnd, &wr);
+			//	int caption = GetSystemMetrics(SM_CYCAPTION);
+			//	POINT pt = {
+			//		wr.left + ((wr.right - wr.left) / 2),
+			//		wr.top + (caption / 2)
+			//	};
+			//	PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
+			}
+			return TRUE;
+		}
+		break;
 	//}
 	//case WM_KEYDOWN:
 	//{
@@ -158,48 +195,52 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			//if (!is_one_of((signed)wParam, MK_CONTROL, MK_SHIFT))
 			//{
 			POINT lbd = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
-			std::thread t([hWnd, wParam, lbd]()
-				{
-					auto toWait = GetDoubleClickTime() / 2;
-					Sleep(toWait);
+			lastButtonDownPt = lbd;
 
-					if (!HIBYTE(GetAsyncKeyState(VK_LBUTTON))) {
-						POINT pt;
-						GetCursorPos(&pt);
-						const LONG XTOL = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
-						const LONG YTOL = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
-						RECT tolerance = { lbd.x - XTOL, lbd.y - YTOL, lbd.x + XTOL, lbd.y + YTOL };
-						log_debug(L"LButton is up: {}, {}", pt.x, pt.y);
+			auto toWait = GetDoubleClickTime() / 2;
+			timerId = SetTimer(hWnd, TIMER_ID, toWait, (TIMERPROC)NULL);
 
-						if (PtInRect(&tolerance, pt))
-						{
-							if (HIBYTE(GetAsyncKeyState(VK_CONTROL)) || HIBYTE(GetAsyncKeyState(VK_SHIFT)))
-							{
-								LONG diff = HIBYTE(GetAsyncKeyState(VK_CONTROL)) ? 10 : -10;
-								InflateWnd(diff, hWnd);
-							}
-							else
-							{
-								log_debug(L"ScreenToolWnd::pWnd: {}", (void*)ScreenToolWnd::pWnd.get());
-								{
-									//HWND hActive = ::GetForegroundWindow();
-									if (!dblClick && !activated)
-									{
-										PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
-									}
-									else
-									{
-										activated = false;
-									}
-								}
-							}
+			//std::thread t([hWnd, wParam, lbd]()
+			//	{
+			//		Sleep(toWait);
 
-						}
+			//		if (!HIBYTE(GetAsyncKeyState(VK_LBUTTON))) {
+			//			POINT pt;
+			//			GetCursorPos(&pt);
+			//			const LONG XTOL = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
+			//			const LONG YTOL = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
+			//			RECT tolerance = { lbd.x - XTOL, lbd.y - YTOL, lbd.x + XTOL, lbd.y + YTOL };
+			//			log_debug(L"LButton is up: {}, {}", pt.x, pt.y);
 
-					}
-				}
-			);
-			t.detach();
+			//			if (PtInRect(&tolerance, pt))
+			//			{
+			//				if (HIBYTE(GetAsyncKeyState(VK_CONTROL)) || HIBYTE(GetAsyncKeyState(VK_SHIFT)))
+			//				{
+			//					LONG diff = HIBYTE(GetAsyncKeyState(VK_CONTROL)) ? 10 : -10;
+			//					InflateWnd(diff, hWnd);
+			//				}
+			//				else
+			//				{
+			//					log_debug(L"ScreenToolWnd::pWnd: {}", (void*)ScreenToolWnd::pWnd.get());
+			//					{
+			//						//HWND hActive = ::GetForegroundWindow();
+			//						if (!dblClick && !activated)
+			//						{
+			//							PostMessage(hWnd, WM_SHOW_WIN_POS, wParam, MAKELPARAM(pt.x, pt.y));
+			//						}
+			//						else
+			//						{
+			//							activated = false;
+			//						}
+			//					}
+			//				}
+
+			//			}
+
+			//		}
+			//	}
+			//);
+			//t.detach();
 
 				//TCHAR buffer[MAX_PATH] = { 0 };
 				//TCHAR* out;
@@ -393,6 +434,10 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 			// Uninstall menus
 			MenuTools::Uninstall(hWnd);
+			HMODULE hMenuTool = LoadLibrary(MT_DLL_NAME64);
+			if(hMenuTool)
+				FreeLibrary(hMenuTool);
+
 			//FreeLibraryAndExitThread(hInst, 0);
 			return TRUE;
 		}
@@ -431,11 +476,13 @@ void InflateWnd(const LONG& diff, const HWND& hWnd)
 		return;
 	}
 
-	POINT pt = { 0 };
-	GetCursorPos(&pt);
-	//ScreenToClient(hWnd, &pt);
-	SetCursorPos(pt.x, pt.y - diff);
-
+	if (HIBYTE(GetAsyncKeyState(VK_CONTROL)) || HIBYTE(GetAsyncKeyState(VK_SHIFT)))
+	{
+		POINT pt = { 0 };
+		GetCursorPos(&pt);
+		//ScreenToClient(hWnd, &pt);
+		SetCursorPos(pt.x, pt.y - diff);
+	}
 
 	wp.rcNormalPosition = wr;
 	wp.showCmd = SW_NORMAL;
