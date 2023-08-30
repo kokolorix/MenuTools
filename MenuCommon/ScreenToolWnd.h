@@ -6,7 +6,7 @@ class ScreenToolWnd
 public:
 	using Ptr = std::unique_ptr<ScreenToolWnd>;
 	static Ptr ShowWindow(HINSTANCE hInst, HWND hParent, UINT message, WPARAM wParam, LPARAM lParam);
-	static Ptr pWnd;
+	thread_local static Ptr pWnd;
 	static BOOL IsScreenToolWnd(HWND hWnd);
 	static void ReadConfig(HWND hWnd);
 

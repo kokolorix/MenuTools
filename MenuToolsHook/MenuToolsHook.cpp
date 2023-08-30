@@ -372,7 +372,8 @@ LRESULT CALLBACK HookProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_SHOW_WIN_POS:
 	{
 		log_debug(L"ShowWonPos: {}, {}", wParam, lParam);
-		ScreenToolWnd::pWnd = ScreenToolWnd::ShowWindow(hInst, hWnd, WM_LBUTTONUP, wParam, lParam);
+		//if (!ScreenToolWnd::pWnd)
+			ScreenToolWnd::pWnd = ScreenToolWnd::ShowWindow(hInst, hWnd, WM_LBUTTONUP, wParam, lParam);
 		break;
 	}
 

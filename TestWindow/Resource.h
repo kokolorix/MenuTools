@@ -18,6 +18,7 @@
 #define ID_INSTALL_HOOKS                32775
 #define ID_UNINSTALL_HOOKS              32776
 #define ID_FILE_ATTACH_TO_WINDOW        32777
+#define ID_FILE_NEWWINDOW               32778
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
@@ -26,7 +27,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        129
-#define _APS_NEXT_COMMAND_VALUE         32778
+#define _APS_NEXT_COMMAND_VALUE         32779
 #define _APS_NEXT_CONTROL_VALUE         1000
 #define _APS_NEXT_SYMED_VALUE           110
 #endif

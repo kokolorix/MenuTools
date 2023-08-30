@@ -1,16 +1,87 @@
 // dllmain.cpp : Defines the entry point for the DLL application.
 #include "stdafx.h"
+#include <map>
 #include <MenuCommon/ScreenToolWnd.h>
 #include "MenuTools.h"
 
-HWND GetMainWnd();
-void InstallHooks();
-void UninstallHooks();
+HWND GetMainWnd(DWORD currentThreadId = GetCurrentThreadId());
+void InstallHooks(DWORD currentThreadId = GetCurrentThreadId());
+void UninstallHooks(DWORD currentThreadId = GetCurrentThreadId());
 
 
 HINSTANCE hInst;  // current instance
 DWORD dwMainThreadId = 0;
-HWND hMainWnd = 0;
+//HWND hMainWnd = 0;
+using MainWndMap = std::map<DWORD, HWND>;
+MainWndMap mainWndMap;
+std::mutex mainWndMutex;
+
+struct Hooks
+{
+	HHOOK hhShell;
+	HHOOK hhkCallWndProc;
+	HHOOK hhkGetMessage;
+	HHOOK hhkCallKeyboardMsg;
+};
+using HookMap = std::map<DWORD, Hooks>;
+HookMap hookMap;
+std::mutex hookMutex;
+
+void Install()
+{
+	auto currentThreadId = GetCurrentThreadId();
+	HWND hMainWnd = GetMainWnd(currentThreadId);
+	if (hMainWnd)
+	{
+		std::lock_guard<std::mutex> lock(mainWndMutex);
+		mainWndMap[currentThreadId] = hMainWnd;
+
+		//UINT wmTaskbarButtonCreated = RegisterWindowMessage(L"TaskbarButtonCreated");
+		//PostMessage(hMainWnd, wmTaskbarButtonCreated, 0, 0);
+
+		InstallHooks(currentThreadId);
+	}
+}
+
+void Uninstall()
+{
+	auto currentThreadId = GetCurrentThreadId();
+	HWND hMainWnd = 0;
+
+	{
+		std::lock_guard<std::mutex> lock(mainWndMutex);
+		auto it = mainWndMap.find(currentThreadId);
+		if (it == mainWndMap.end())
+			return;
+		hMainWnd = it->second;
+	}
+
+	UninstallHooks(currentThreadId);
+	MenuTools::Uninstall(hMainWnd);
+	ScreenToolWnd::pWnd.reset();
+}
+
+HHOOK g_hHook = NULL;
+LRESULT CALLBACK ShellHookProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+	DWORD currentThreadId = GetCurrentThreadId();
+
+	if (nCode == HSHELL_WINDOWCREATED)
+	{
+		HWND hNewWindow = (HWND)wParam;
+		// Check if the new window belongs to your process
+		DWORD dwProcessId;
+		GetWindowThreadProcessId(hNewWindow, &dwProcessId);
+		if (dwProcessId == GetCurrentProcessId())
+		{
+			Install();// Handle the new window creation here
+		}
+	}
+
+	std::lock_guard<std::mutex> lock(hookMutex);
+	Hooks hooks = hookMap[currentThreadId];
+	return CallNextHookEx(hooks.hhShell, nCode, wParam, lParam);
+}
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  dwReason, LPVOID lpReserved)
 {
@@ -19,22 +90,43 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  dwReason, LPVOID lpReserved)
 	if (dwReason == DLL_PROCESS_ATTACH)
 	{
 		hInst = hModule;
+		Install();
+		//g_hHook = SetWindowsHookEx(WH_SHELL, ShellHookProc, NULL, 0);
 
 
-		hMainWnd = GetMainWnd();
+		//hMainWnd = GetMainWnd();
 
-		InstallHooks();
+		//InstallHooks();
 
-		UINT wmTaskbarButtonCreated = RegisterWindowMessage(L"TaskbarButtonCreated");
-		PostMessage(hMainWnd, wmTaskbarButtonCreated, 0, 0);
+		//UINT wmTaskbarButtonCreated = RegisterWindowMessage(L"TaskbarButtonCreated");
+		//PostMessage(hMainWnd, wmTaskbarButtonCreated, 0, 0);
 	}
 	else if (dwReason == DLL_PROCESS_DETACH)
 	{
-		UninstallHooks();
-		MenuTools::Uninstall(hMainWnd);
-		#include <MenuCommon/ScreenToolWnd.h>
-		ScreenToolWnd::pWnd.reset();
+		//UnhookWindowsHookEx(g_hHook);
+
+		Uninstall();
+		//UninstallHooks();
+		//MenuTools::Uninstall(hMainWnd);
+		//#include <MenuCommon/ScreenToolWnd.h>
+		//ScreenToolWnd::pWnd.reset();
 		hInst = NULL;
+	}
+	else if (dwReason == DLL_THREAD_ATTACH)
+	{
+		DWORD currentThreadId = GetCurrentThreadId();
+
+		Hooks hooks = {};
+
+		hooks.hhShell = SetWindowsHookEx(WH_SHELL, ShellHookProc, NULL, currentThreadId);
+
+		std::lock_guard<std::mutex> lock(hookMutex);
+		hookMap[currentThreadId] = hooks;
+		//Install();
+	}
+	else if (dwReason == DLL_THREAD_DETACH)
+	{
+		Uninstall();
 	}
 
 
@@ -44,16 +136,16 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  dwReason, LPVOID lpReserved)
 using WndVector = std::vector<HWND>;
 WndVector GetDesktopWnds();
 
-HWND GetMainWnd()
+HWND GetMainWnd(DWORD currentThreadId /*= GetCurrentThreadId()*/)
 {
 	auto wnds = GetDesktopWnds();
 
-	auto processId = GetCurrentProcessId();
+	auto currentProcessId = GetCurrentProcessId();
 
 	for (HWND hWnd : wnds) {
 		DWORD wndProcessId = NULL;
-		dwMainThreadId = GetWindowThreadProcessId(hWnd, &wndProcessId);
-		if (processId == wndProcessId)
+		auto wndThreadId = GetWindowThreadProcessId(hWnd, &wndProcessId);
+		if (currentProcessId == wndProcessId && wndThreadId == currentThreadId)
 		{
 			HWND hMainWnd = GetAncestor(hWnd, GA_ROOT);
 			return hMainWnd;
@@ -89,9 +181,9 @@ WndVector GetDesktopWnds()
 	return hWnds;	//EnumDesktopWindows()
 }
 
-HHOOK hhkCallWndProc;
-HHOOK hhkGetMessage;
-HHOOK hhkCallKeyboardMsg;
+//HHOOK hhkCallWndProc;
+//HHOOK hhkGetMessage;
+//HHOOK hhkCallKeyboardMsg;
 
 extern HOOKPROC hkCallWndProc;
 extern HOOKPROC hkGetMsgProc;
@@ -102,7 +194,7 @@ extern HOOKPROC hkCallKeyboardMsg;
 #define MT_HOOK_PROC_KYB					"CallKeyboardMsg"
 
 
-void InstallHooks() 
+void InstallHooks(DWORD currentThreadId /*= GetCurrentThreadId()*/)
 {
 	HMODULE hMenuTool = GetModuleHandle(MT_DLL_NAME64);
 	if(hMenuTool == 0)
@@ -131,33 +223,51 @@ void InstallHooks()
 		return;
 	}
 
-	DWORD dwThreadId = ::GetCurrentThreadId();
+	Hooks hooks = {};
 
 	// Set hook on CallWndProc
-	hhkCallWndProc = SetWindowsHookEx(WH_CALLWNDPROC, hkCallWndProc, NULL, dwMainThreadId);
-	if (!hhkCallWndProc)
+	hooks.hhkCallWndProc = SetWindowsHookEx(WH_CALLWNDPROC, hkCallWndProc, NULL, currentThreadId);
+	if (!hooks.hhkCallWndProc)
 	{
 		return;
 	}
 
 	// Set hook on GetMessage
-	hhkGetMessage = SetWindowsHookEx(WH_GETMESSAGE, hkGetMsgProc, NULL, dwMainThreadId);
-	if (!hhkGetMessage)
+	hooks.hhkGetMessage = SetWindowsHookEx(WH_GETMESSAGE, hkGetMsgProc, NULL, currentThreadId);
+	if (!hooks.hhkGetMessage)
 	{
 		return;
 	}
 
 	// Set hook on Keyboard
-	hhkCallKeyboardMsg = SetWindowsHookEx(WH_KEYBOARD, hkCallKeyboardMsg, NULL, dwMainThreadId);
-	if (!hhkGetMessage)
+	hooks.hhkCallKeyboardMsg = SetWindowsHookEx(WH_KEYBOARD, hkCallKeyboardMsg, NULL, currentThreadId);
+	if (!hooks.hhkGetMessage)
 	{
 		return;
 	}
+
+	std::lock_guard<std::mutex> lock(hookMutex);
+	hookMap[currentThreadId] = hooks;
 }
 
-void UninstallHooks()
+void UninstallHooks(DWORD currentThreadId /*= GetCurrentThreadId()*/)
 {
-	UnhookWindowsHookEx(hhkCallWndProc);
-	UnhookWindowsHookEx(hhkGetMessage);
-	UnhookWindowsHookEx(hhkCallKeyboardMsg);
+	Hooks hooks = {};
+	{
+		std::lock_guard<std::mutex> lock(hookMutex);
+		auto it = hookMap.find(currentThreadId);
+		if (it == hookMap.end())
+			return;
+
+		hooks = it->second;
+	}
+
+	if (hooks.hhShell)
+		UnhookWindowsHookEx(hooks.hhShell);
+	if (hooks.hhkCallWndProc)
+		UnhookWindowsHookEx(hooks.hhkCallWndProc);
+	if (hooks.hhkGetMessage)
+		UnhookWindowsHookEx(hooks.hhkGetMessage);
+	if (hooks.hhkCallKeyboardMsg)
+		UnhookWindowsHookEx(hooks.hhkCallKeyboardMsg);
 }

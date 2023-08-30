@@ -379,7 +379,7 @@ struct ScreenToolWnd::Impl
 
 std::map<HWND, ScreenToolWnd::Impl*> ScreenToolWnd::Impl::hWndToImplMap;
 
-ScreenToolWnd::Ptr ScreenToolWnd::pWnd;
+thread_local ScreenToolWnd::Ptr ScreenToolWnd::pWnd;
 
 ScreenToolWnd::ScreenToolWnd() = default;
 ScreenToolWnd::~ScreenToolWnd() = default;

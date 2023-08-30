@@ -401,6 +401,10 @@ BOOL MenuTools::WndProc(HWND hWnd, WPARAM wParam, LPARAM lParam)
 	case MT_MENU_OPEN_WIN_POS:
 	case MT_MENU_OPEN_WIN_POS1:
 	{
+		DWORD wndThreadId = GetWindowThreadProcessId(hWnd, NULL);
+		if (wmId == MT_MENU_OPEN_WIN_POS1 && wndThreadId != GetCurrentThreadId())
+			return FALSE;
+
 		RECT wr;
 		GetWindowRect(hWnd, &wr);
 		int caption = GetSystemMetrics(SM_CYCAPTION);
@@ -418,7 +422,9 @@ BOOL MenuTools::WndProc(HWND hWnd, WPARAM wParam, LPARAM lParam)
 			pt = tmp;
 		}
 
-		ScreenToolWnd::pWnd = ScreenToolWnd::ShowWindow(hInst, hWnd, WM_LBUTTONUP, wParam, MAKELPARAM(pt.x, pt.y));
+		//if(!ScreenToolWnd::pWnd)
+			ScreenToolWnd::pWnd = ScreenToolWnd::ShowWindow(hInst, hWnd, WM_LBUTTONUP, wParam, MAKELPARAM(pt.x, pt.y));
+			//Sleep(500);
 		return TRUE;
 	}
 	

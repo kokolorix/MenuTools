@@ -100,6 +100,12 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 	return RegisterClassExW(&wcex);
 }
 
+bool targetingWindow = false;
+HWND targetingCurrentWindow = NULL;
+void AttachMenuToolToProcess(DWORD targetPid);
+HWND CreateNewWindow(HWND hParentWnd = nullptr);
+DWORD WINAPI NewWindowProc(_In_ LPVOID lpParameter);
+
 //
 //   FUNCTION: InitInstance(HINSTANCE, int)
 //
@@ -114,13 +120,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
 	hInst = hInstance; // Store instance handle in our global variable
 
-	RECT wa = { 0 };
-	SystemParametersInfo(SPI_GETWORKAREA, 0, &wa, 0);
-	int waw = wa.right - wa.left, wah = wa.bottom - wa.top;
-	int w = 600, h = 400;
 
-	HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-		(waw - w) / 2, (wah - h) / 2, w, h, nullptr, nullptr, hInstance, nullptr);
+	HWND hWnd = CreateNewWindow();
 	//CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
 	if (!hWnd)
@@ -149,9 +150,6 @@ void AttachMenuToolsToExplorer(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 //
 //	
 
-bool targetingWindow = false;
-HWND targetingCurrentWindow = NULL;
-void AttachMenuToolToProcess(DWORD targetPid);
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -169,6 +167,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case IDM_EXIT:
 			DestroyWindow(hWnd);
 			break;
+
+		case ID_FILE_NEWWINDOW:
+		{
+			CreateThread(NULL, 0, NewWindowProc, NULL, 0, NULL);
+			break;
+		}
 
 		case ID_FILE_ATTACHMENUTOOLS:
 			AttacheMenuTools(hWnd, message, wParam, lParam);
@@ -489,4 +493,35 @@ void AttachMenuToolsToExplorer(HWND hWnd, UINT message, WPARAM wParam, LPARAM lP
 	AttachMenuToolToProcess(targetPid);
 	return;
 }
+
+HWND CreateNewWindow(HWND hParentWnd)
+{
+	RECT wa = { 0 };
+	SystemParametersInfo(SPI_GETWORKAREA, 0, &wa, 0);
+	int waw = wa.right - wa.left, wah = wa.bottom - wa.top;
+	int w = 600, h = 400;
+
+	HWND hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+		(waw - w) / 2, (wah - h) / 2, w, h, hParentWnd, nullptr, hInst, nullptr);
+
+	return hWnd;
+}
+
+
+DWORD WINAPI NewWindowProc(_In_ LPVOID lpParameter)
+{
+	HWND hNewOne = CreateNewWindow();
+	ShowWindow(hNewOne, SW_SHOW);
+	UpdateWindow(hNewOne);
+
+	MSG msg;
+	while (GetMessage(&msg, NULL, 0, 0))
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+
+	return 0;
+}
+
 
